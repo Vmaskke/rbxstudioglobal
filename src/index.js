@@ -52,6 +52,7 @@ const {
   getApplicationPanel
 } = require("./services/serverStateStore");
 const { renderRankCard } = require("./utils/rankCard");
+const { renderWelcomeCard } = require("./utils/welcomeCard");
 
 const token = process.env.DISCORD_TOKEN;
 const clientId = process.env.CLIENT_ID;
@@ -376,6 +377,15 @@ async function getBotChannels(guild) {
   };
 }
 
+async function getOnboardingChannels(guild) {
+  await guild.channels.fetch();
+
+  return {
+    welcomeFeedChannel: guild.channels.cache.find((channel) => channel.name === "welcome-feed"),
+    memberTrackerChannel: guild.channels.cache.find((channel) => channel.name === "member-tracker")
+  };
+}
+
 async function positionChildren(guild, category, orderedChannels) {
   for (let index = 0; index < orderedChannels.length; index += 1) {
     const definition = orderedChannels[index];
@@ -431,6 +441,25 @@ function buildReadOnlyOverwrites(guild, visibleRoleIds, writerRoleIds) {
       deny: [PermissionFlagsBits.SendMessages]
     });
   }
+
+  for (const roleId of writerRoleIds) {
+    overwrites.push({
+      id: roleId,
+      allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages]
+    });
+  }
+
+  return overwrites;
+}
+
+function buildPublicReadOnlyOverwrites(guild, writerRoleIds) {
+  const overwrites = [
+    {
+      id: guild.roles.everyone.id,
+      allow: [PermissionFlagsBits.ViewChannel],
+      deny: [PermissionFlagsBits.SendMessages]
+    }
+  ];
 
   for (const roleId of writerRoleIds) {
     overwrites.push({
@@ -1304,7 +1333,11 @@ async function syncServer(guild, mode, scope = "all") {
     for (const channelDefinition of announcementChannels) {
       let overwrites = baseOverwrites;
 
-      if (["welcome-start-here", "rules", "language-guide", "navigation", "choose-your-roles"].includes(channelDefinition.name)) {
+      if (["welcome-start-here", "welcome-feed", "member-tracker", "rules", "language-guide", "navigation", "choose-your-roles"].includes(channelDefinition.name)) {
+        overwrites = buildPublicReadOnlyOverwrites(guild, onboardingWriters);
+      }
+
+      if (["rules", "language-guide", "navigation", "choose-your-roles"].includes(channelDefinition.name)) {
         overwrites = buildReadOnlyOverwrites(guild, visibleVerifiedRoles, onboardingWriters);
       }
 
@@ -2695,6 +2728,58 @@ client.on("voiceStateUpdate", async (oldState, newState) => {
     }
   } catch (error) {
     console.error("Voice XP failed:", error);
+  }
+});
+
+client.on("guildMemberAdd", async (member) => {
+  try {
+    const { welcomeFeedChannel, memberTrackerChannel } = await getOnboardingChannels(member.guild);
+    const avatarUrl = member.displayAvatarURL({ extension: "png", size: 256 });
+    const cardBuffer = renderWelcomeCard({
+      username: member.displayName,
+      avatarUrl,
+      memberCount: member.guild.memberCount,
+      serverName: setupSummary.serverName
+    });
+    const attachment = new AttachmentBuilder(cardBuffer, { name: `welcome-${member.id}.png` });
+    const createdAtSeconds = Math.floor(member.user.createdTimestamp / 1000);
+
+    if (welcomeFeedChannel && welcomeFeedChannel.type === ChannelType.GuildText) {
+      await welcomeFeedChannel.send({
+        content: `${member} welcome to **${setupSummary.serverName}**. Verify yourself, pick your country, and jump into the global creator scene.`,
+        files: [attachment]
+      }).catch(() => null);
+    }
+
+    if (memberTrackerChannel && memberTrackerChannel.type === ChannelType.GuildText) {
+      await memberTrackerChannel.send({
+        embeds: [
+          new EmbedBuilder()
+            .setTitle("New Member Joined")
+            .setColor(0x55efc4)
+            .setDescription(`${member.user.tag} joined the server.`)
+            .addFields(
+              {
+                name: "Member",
+                value: `${member} (${member.id})`
+              },
+              {
+                name: "Discord Account Created",
+                value: `<t:${createdAtSeconds}:F>\n<t:${createdAtSeconds}:R>`
+              },
+              {
+                name: "Current Member Count",
+                value: String(member.guild.memberCount)
+              }
+            )
+            .setThumbnail(member.displayAvatarURL({ extension: "png", size: 256 }))
+            .setTimestamp()
+        ],
+        allowedMentions: { parse: [] }
+      }).catch(() => null);
+    }
+  } catch (error) {
+    console.error("Welcome flow failed:", error);
   }
 });
 

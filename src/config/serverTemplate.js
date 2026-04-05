@@ -184,6 +184,8 @@ const skillRoles = [
 
 const announcementChannels = [
   { type: "text", name: "welcome-start-here", topic: "Start here: read the rules, choose your roles, and enter the global community." },
+  { type: "text", name: "welcome-feed", topic: "Warm automated welcomes for new members joining the server." },
+  { type: "text", name: "member-tracker", topic: "Join tracking, account age, and entry logs for new members." },
   { type: "text", name: "rules", topic: "Server rules and moderation expectations." },
   { type: "text", name: "language-guide", topic: "Read the welcome and rules in your language, then choose your roles." },
   { type: "text", name: "navigation", topic: "Quick navigation, where to post, and how the server works." },
