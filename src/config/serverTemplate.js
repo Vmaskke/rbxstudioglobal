@@ -227,9 +227,16 @@ const publicCategories = [
 const mediaCategory = {
   name: "🎥 Creator Program",
   channels: [
-    { type: "text", name: "youtuber-info", topic: "Info about the YouTuber role and where to post videos." },
-    { type: "text", name: "apply-for-youtuber", topic: "Apply for the YouTuber role with your channel links and stats." },
-    { type: "text", name: "youtuber-drops", topic: "Approved YouTubers post their fresh videos here." }
+    { type: "text", name: "media-info", topic: "Info about the Media role and where to post videos." },
+    { type: "text", name: "apply-for-media", topic: "Apply for the Media role with your channel links and creator info." },
+    { type: "text", name: "media-drops", topic: "Approved media creators post their fresh videos here." }
+  ]
+};
+
+const reviewCategory = {
+  name: "🗂 Review Desk",
+  channels: [
+    { type: "text", name: "media-applications", topic: "Private review queue for Media applications." }
   ]
 };
 
@@ -256,7 +263,8 @@ const fixedRoles = [
   { key: "community", name: "🌐 Community Team", color: 0x2ecc71, hoist: true },
   { key: "country_lead", name: "📍 Country Lead", color: 0x9b59b6, hoist: true },
   { key: "verified", name: "✅ Verified", color: 0x95a5a6, hoist: false },
-  { key: "youtuber", name: "🎥 YouTuber", color: 0xff4757, hoist: true }
+  { key: "media", name: "🎥 Media", color: 0xff4757, hoist: true },
+  { key: "media_reviewer", name: "📝 Media Reviewer", color: 0x00cec9, hoist: true }
 ];
 
 const setupSummary = {
@@ -264,7 +272,7 @@ const setupSummary = {
   welcomeText:
     "Welcome to Roblox Studio Global. Choose your country and creative roles, meet developers from different countries, ask for help, and share your work.",
   serverPitch:
-    "A clean international home for Roblox creators: scripters, builders, animators, modelers, UI designers, VFX artists, sound designers, web developers, YouTubers, and studios.",
+    "A clean international home for Roblox creators: scripters, builders, animators, modelers, UI designers, VFX artists, sound designers, web developers, media creators, and studios.",
   rules: [
     "Respect every country, language, and skill level.",
     "No harassment, hate speech, scams, or NSFW content.",
@@ -281,6 +289,7 @@ module.exports = {
   publicCategories,
   mediaCategory,
   applicationCategory,
+  reviewCategory,
   staffCategory,
   fixedRoles,
   setupSummary

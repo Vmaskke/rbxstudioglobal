@@ -26,6 +26,7 @@ const {
   fixedRoles,
   mediaCategory,
   publicCategories,
+  reviewCategory,
   setupSummary,
   skillRoles,
   staffCategory
@@ -44,7 +45,9 @@ const {
   getManagedMessages,
   setManagedMessages,
   getGuildMeta,
-  setGuildMetaValue
+  setGuildMetaValue,
+  setApplicationPanel,
+  getApplicationPanel
 } = require("./services/serverStateStore");
 const { renderRankCard } = require("./utils/rankCard");
 
@@ -101,7 +104,58 @@ const commands = [
     ),
   new SlashCommandBuilder()
     .setName("leaderboard")
-    .setDescription("Show the server XP leaderboard.")
+    .setDescription("Show the server XP leaderboard."),
+  new SlashCommandBuilder()
+    .setName("create-application-panel")
+    .setDescription("Founder-only: create a two-field application panel in any channel.")
+    .addChannelOption((option) =>
+      option
+        .setName("channel")
+        .setDescription("Channel where the panel should be posted")
+        .setRequired(true)
+    )
+    .addChannelOption((option) =>
+      option
+        .setName("review_channel")
+        .setDescription("Private channel where submissions should go")
+        .setRequired(true)
+    )
+    .addStringOption((option) =>
+      option
+        .setName("title")
+        .setDescription("Panel title")
+        .setRequired(true)
+    )
+    .addStringOption((option) =>
+      option
+        .setName("description")
+        .setDescription("Panel description")
+        .setRequired(true)
+    )
+    .addStringOption((option) =>
+      option
+        .setName("button_label")
+        .setDescription("Button text")
+        .setRequired(true)
+    )
+    .addStringOption((option) =>
+      option
+        .setName("modal_title")
+        .setDescription("Modal window title")
+        .setRequired(true)
+    )
+    .addStringOption((option) =>
+      option
+        .setName("field_one_label")
+        .setDescription("First field label")
+        .setRequired(true)
+    )
+    .addStringOption((option) =>
+      option
+        .setName("field_two_label")
+        .setDescription("Second field label")
+        .setRequired(true)
+    )
 ].map((command) => command.toJSON());
 
 function chunk(items, size) {
@@ -522,36 +576,36 @@ function createCommandsEmbed() {
 
 function createYouTuberInfoEmbed() {
   return new EmbedBuilder()
-    .setTitle("YouTuber Program")
+    .setTitle("Media Program")
     .setColor(0xff4757)
-    .setDescription("Creators can apply for the YouTuber role and then publish fresh videos in the creator channel.")
+    .setDescription("Creators can apply for the Media role and then publish fresh videos in the creator channel.")
     .addFields(
       {
         name: "How to apply",
-        value: "Post your YouTube channel link, your niche, your language, and one recent Roblox-related video."
+        value: "Post your YouTube or creator link, your niche, your language, and one recent Roblox-related video."
       },
       {
-        name: "What approved YouTubers can do",
-        value: "Post new uploads in #youtuber-drops and help grow the international community."
+        name: "What approved Media creators can do",
+        value: "Post new uploads in #media-drops and help grow the international community."
       }
     );
 }
 
-function createYouTuberApplyEmbed() {
+function createMediaApplyEmbed() {
   return new EmbedBuilder()
-    .setTitle("Apply For The YouTuber Role")
+    .setTitle("Apply For The Media Role")
     .setColor(0xff4757)
     .setDescription(
-      "Press the button below to open the application form. Fill in your social link and tell us why you want the media role."
+      "Press the button below to open the application form. Fill in your social link and tell us who you are and why you want the Media role."
     )
     .addFields(
       {
         name: "What to prepare",
-        value: "Your YouTube or social link, your content language, and a short introduction about yourself."
+        value: "Your creator link, your content language, and a short introduction about yourself."
       },
       {
         name: "What happens next",
-        value: "Your application is posted here красиво as an embed so staff can review it."
+        value: "Your application goes to a private review channel that only Media reviewers and staff can see."
       }
     );
 }
@@ -632,39 +686,71 @@ function createVerificationButtons() {
   );
 }
 
-function createYouTuberApplyButton() {
+function createMediaApplyButton() {
   return new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setCustomId("open-youtuber-application")
-      .setLabel("Apply For YouTuber")
+      .setCustomId("open-media-application")
+      .setLabel("Apply For Media")
       .setStyle(ButtonStyle.Danger)
   );
 }
 
-function createYouTuberApplicationModal() {
+function createApplicationPanelEmbed(title, description) {
+  return new EmbedBuilder()
+    .setTitle(title)
+    .setDescription(description)
+    .setColor(0xff4757);
+}
+
+function createApplicationPanelButton(customId, label) {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(customId)
+      .setLabel(label)
+      .setStyle(ButtonStyle.Primary)
+  );
+}
+
+function createApplicationModal(modalId, title, fieldOneLabel, fieldTwoLabel, fieldOnePlaceholder, fieldTwoPlaceholder) {
   const socialInput = new TextInputBuilder()
-    .setCustomId("social_link")
-    .setLabel("Your social or YouTube link")
+    .setCustomId("field_one")
+    .setLabel(fieldOneLabel)
     .setStyle(TextInputStyle.Short)
-    .setPlaceholder("https://youtube.com/@yourchannel")
+    .setPlaceholder(fieldOnePlaceholder)
     .setRequired(true)
     .setMaxLength(200);
 
   const aboutInput = new TextInputBuilder()
-    .setCustomId("about_creator")
-    .setLabel("Tell us about yourself")
+    .setCustomId("field_two")
+    .setLabel(fieldTwoLabel)
     .setStyle(TextInputStyle.Paragraph)
-    .setPlaceholder("Who are you, what do you create, and why do you want the media role?")
+    .setPlaceholder(fieldTwoPlaceholder)
     .setRequired(true)
     .setMaxLength(1000);
 
   return new ModalBuilder()
-    .setCustomId("submit-youtuber-application")
-    .setTitle("YouTuber Application")
+    .setCustomId(modalId)
+    .setTitle(title)
     .addComponents(
       new ActionRowBuilder().addComponents(socialInput),
       new ActionRowBuilder().addComponents(aboutInput)
     );
+}
+
+function createMediaApplicationModal() {
+  return createApplicationModal(
+    "submit-media-application",
+    "Media Role Application",
+    "Your social or YouTube link",
+    "Tell us about yourself",
+    "https://youtube.com/@yourchannel",
+    "Who are you, what do you create, and why do you want the Media role?"
+  );
+}
+
+function isFounder(member) {
+  const founderRoleName = fixedRoles.find((role) => role.key === "founder")?.name;
+  return Boolean(founderRoleName && member.roles.cache.some((role) => role.name === founderRoleName));
 }
 
 async function clearBotMessages(channel) {
@@ -760,6 +846,25 @@ async function syncServer(guild, mode) {
   await guild.roles.fetch();
   await guild.channels.fetch();
 
+  const legacyMediaRole = guild.roles.cache.find((role) => role.name === "🎥 YouTuber");
+  if (legacyMediaRole) {
+    await legacyMediaRole.edit({ name: "🎥 Media" }).catch(() => null);
+  }
+
+  const legacyChannelRenames = [
+    ["youtuber-info", "media-info"],
+    ["apply-for-youtuber", "apply-for-media"],
+    ["youtuber-drops", "media-drops"]
+  ];
+
+  for (const [oldName, newName] of legacyChannelRenames) {
+    const oldChannel = guild.channels.cache.find((channel) => channel.name === oldName);
+    const newChannel = guild.channels.cache.find((channel) => channel.name === newName);
+    if (oldChannel && !newChannel) {
+      await oldChannel.setName(newName).catch(() => null);
+    }
+  }
+
   if (mode === "full") {
     await guild.setName(setupSummary.serverName).catch(() => null);
   }
@@ -807,7 +912,8 @@ async function syncServer(guild, mode) {
     ensuredFixedRoles.country_lead.id
   ];
   const verifiedRoleId = ensuredFixedRoles.verified.id;
-  const youtuberRoleId = ensuredFixedRoles.youtuber.id;
+  const mediaRoleId = ensuredFixedRoles.media.id;
+  const mediaReviewerRoleId = ensuredFixedRoles.media_reviewer.id;
   const onboardingWriters = [ensuredFixedRoles.founder.id, ensuredFixedRoles.community.id];
   const visibleVerifiedRoles = [verifiedRoleId, ...adminRoleIds];
   const founderAndCommunity = [ensuredFixedRoles.founder.id, ensuredFixedRoles.community.id];
@@ -859,22 +965,46 @@ async function syncServer(guild, mode) {
   orderedCategories.push(media);
   for (const channelDefinition of mediaCategory.channels) {
     let overwrites = verifiedOverwrites;
-    if (channelDefinition.name === "youtuber-info") {
+    if (channelDefinition.name === "media-info") {
       overwrites = buildReadOnlyOverwrites(guild, visibleVerifiedRoles, founderAndCommunity);
     }
-    if (channelDefinition.name === "apply-for-youtuber") {
+    if (channelDefinition.name === "apply-for-media") {
       overwrites = buildVisibleWriteOverwrites(guild, [verifiedRoleId, ...adminRoleIds], [verifiedRoleId, ...adminRoleIds]);
     }
-    if (channelDefinition.name === "youtuber-drops") {
+    if (channelDefinition.name === "media-drops") {
       overwrites = buildReadOnlyOverwrites(
         guild,
         [verifiedRoleId, ...adminRoleIds],
-        [youtuberRoleId, ...founderAndCommunity, ...adminRoleIds]
+        [mediaRoleId, ...founderAndCommunity, ...adminRoleIds]
       );
     }
     await ensureChildChannel(guild, media, channelDefinition, overwrites);
   }
   await positionChildren(guild, media, mediaCategory.channels);
+
+  const reviewOverwrites = [
+    {
+      id: guild.roles.everyone.id,
+      deny: [PermissionFlagsBits.ViewChannel]
+    },
+    ...[ensuredFixedRoles.founder.id, ensuredFixedRoles.admin.id, ensuredFixedRoles.community.id, mediaReviewerRoleId]
+      .filter(Boolean)
+      .map((roleId) => ({
+        id: roleId,
+        allow: [
+          PermissionFlagsBits.ViewChannel,
+          PermissionFlagsBits.SendMessages,
+          PermissionFlagsBits.ManageMessages
+        ]
+      }))
+  ];
+
+  const reviewDesk = await ensureCategory(guild, reviewCategory.name, reviewOverwrites);
+  orderedCategories.push(reviewDesk);
+  for (const channelDefinition of reviewCategory.channels) {
+    await ensureChildChannel(guild, reviewDesk, channelDefinition, reviewOverwrites);
+  }
+  await positionChildren(guild, reviewDesk, reviewCategory.channels);
 
   const applications = await ensureCategory(guild, applicationCategory.name, verifiedOverwrites);
   orderedCategories.push(applications);
@@ -974,7 +1104,8 @@ async function syncServer(guild, mode) {
     ensuredFixedRoles.community.id,
     ensuredFixedRoles.country_lead.id,
     ensuredFixedRoles.verified.id,
-    ensuredFixedRoles.youtuber.id,
+    ensuredFixedRoles.media.id,
+    ensuredFixedRoles.media_reviewer.id,
     ...countries.map((country) => countryRoleMap.get(country.key)?.id).filter(Boolean),
     ...countries.map((country) => regionLeaderRoleMap.get(country.key)?.id).filter(Boolean),
     ...skillRoles.map((skill) => skillRoleMap.get(skill.key)?.id).filter(Boolean)
@@ -1003,11 +1134,11 @@ async function syncServer(guild, mode) {
   const navigationChannel = guild.channels.cache.find(
     (channel) => channel.parentId === onboardingCategory.id && channel.name === "navigation"
   );
-  const youtuberInfoChannel = guild.channels.cache.find(
-    (channel) => channel.parentId === media.id && channel.name === "youtuber-info"
+  const mediaInfoChannel = guild.channels.cache.find(
+    (channel) => channel.parentId === media.id && channel.name === "media-info"
   );
-  const youtuberApplyChannel = guild.channels.cache.find(
-    (channel) => channel.parentId === media.id && channel.name === "apply-for-youtuber"
+  const mediaApplyChannel = guild.channels.cache.find(
+    (channel) => channel.parentId === media.id && channel.name === "apply-for-media"
   );
   const leaderInfoChannel = guild.channels.cache.find(
     (channel) => channel.parentId === applications.id && channel.name === "region-leader-info"
@@ -1039,12 +1170,12 @@ async function syncServer(guild, mode) {
     await postRoleSelectionMessages(rolesChannel);
   }
 
-  if (youtuberInfoChannel) {
-    await postYouTuberInfoMessages(youtuberInfoChannel);
+  if (mediaInfoChannel) {
+    await postYouTuberInfoMessages(mediaInfoChannel);
   }
 
-  if (youtuberApplyChannel) {
-    await postYouTuberApplyMessages(youtuberApplyChannel);
+  if (mediaApplyChannel) {
+    await postYouTuberApplyMessages(mediaApplyChannel);
   }
 
   if (leaderInfoChannel) {
@@ -1244,8 +1375,8 @@ async function postYouTuberInfoMessages(channel) {
 async function postYouTuberApplyMessages(channel) {
   await syncManagedMessages(channel, "media:youtuber-apply", [
     {
-      embeds: [createYouTuberApplyEmbed()],
-      components: [createYouTuberApplyButton()]
+      embeds: [createMediaApplyEmbed()],
+      components: [createMediaApplyButton()]
     }
   ]);
 }
@@ -1472,6 +1603,59 @@ client.on("interactionCreate", async (interaction) => {
           embeds: [createLeaderboardEmbed(leaderboard, interaction.guild)],
           ephemeral: true
         });
+        return;
+      }
+
+      if (interaction.commandName === "create-application-panel") {
+        const member = await interaction.guild.members.fetch(interaction.user.id);
+        if (!isFounder(member)) {
+          await interaction.reply({
+            content: "Only the Founder can create custom application panels.",
+            ephemeral: true
+          });
+          return;
+        }
+
+        const targetChannel = interaction.options.getChannel("channel", true);
+        const reviewChannel = interaction.options.getChannel("review_channel", true);
+        const title = interaction.options.getString("title", true);
+        const description = interaction.options.getString("description", true);
+        const buttonLabel = interaction.options.getString("button_label", true);
+        const modalTitle = interaction.options.getString("modal_title", true);
+        const fieldOneLabel = interaction.options.getString("field_one_label", true);
+        const fieldTwoLabel = interaction.options.getString("field_two_label", true);
+
+        if (targetChannel.type !== ChannelType.GuildText || reviewChannel.type !== ChannelType.GuildText) {
+          await interaction.reply({
+            content: "Choose text channels for both the panel channel and the review channel.",
+            ephemeral: true
+          });
+          return;
+        }
+
+        const panelId = `panel_${Date.now()}`;
+        setApplicationPanel(interaction.guild.id, panelId, {
+          targetChannelId: targetChannel.id,
+          reviewChannelId: reviewChannel.id,
+          title,
+          description,
+          buttonLabel,
+          modalTitle,
+          fieldOneLabel,
+          fieldTwoLabel,
+          fieldOnePlaceholder: "Paste the main link or reference here",
+          fieldTwoPlaceholder: "Tell us about the applicant, motivation, and details"
+        });
+
+        await targetChannel.send({
+          embeds: [createApplicationPanelEmbed(title, description)],
+          components: [createApplicationPanelButton(`open-panel:${panelId}`, buttonLabel)]
+        });
+
+        await interaction.reply({
+          content: `Application panel created in #${targetChannel.name}.`,
+          ephemeral: true
+        });
       }
     }
 
@@ -1514,8 +1698,32 @@ client.on("interactionCreate", async (interaction) => {
         return;
       }
 
-      if (interaction.customId === "open-youtuber-application") {
-        await interaction.showModal(createYouTuberApplicationModal());
+      if (interaction.customId === "open-media-application") {
+        await interaction.showModal(createMediaApplicationModal());
+        return;
+      }
+
+      if (interaction.customId.startsWith("open-panel:")) {
+        const panelId = interaction.customId.split(":")[1];
+        const panel = getApplicationPanel(interaction.guild.id, panelId);
+        if (!panel) {
+          await interaction.reply({
+            content: "This application panel is no longer available.",
+            ephemeral: true
+          });
+          return;
+        }
+
+        await interaction.showModal(
+          createApplicationModal(
+            `submit-panel:${panelId}`,
+            panel.modalTitle,
+            panel.fieldOneLabel,
+            panel.fieldTwoLabel,
+            panel.fieldOnePlaceholder,
+            panel.fieldTwoPlaceholder
+          )
+        );
         return;
       }
 
@@ -1576,28 +1784,28 @@ client.on("interactionCreate", async (interaction) => {
         return;
       }
 
-      if (interaction.customId === "submit-youtuber-application") {
-        const socialLink = interaction.fields.getTextInputValue("social_link");
-        const aboutCreator = interaction.fields.getTextInputValue("about_creator");
+      if (interaction.customId === "submit-media-application") {
+        const socialLink = interaction.fields.getTextInputValue("field_one");
+        const aboutCreator = interaction.fields.getTextInputValue("field_two");
         const applicationChannel = interaction.guild.channels.cache.find(
-          (channel) => channel.name === "apply-for-youtuber" && channel.type === ChannelType.GuildText
+          (channel) => channel.name === "media-applications" && channel.type === ChannelType.GuildText
         );
 
         if (!applicationChannel) {
           await interaction.reply({
-            content: "The YouTuber application channel was not found. Ask staff to run /setup again.",
+            content: "The Media review channel was not found. Ask staff to run /setup again.",
             ephemeral: true
           });
           return;
         }
 
         const applicationEmbed = new EmbedBuilder()
-          .setTitle("New YouTuber Application")
+          .setTitle("New Media Application")
           .setColor(0xff4757)
-          .setDescription(`${interaction.user} submitted a media application.`)
+          .setDescription(`${interaction.user} submitted a Media application.`)
           .addFields(
             {
-              name: "Social Link",
+              name: "Social Or Creator Link",
               value: socialLink
             },
             {
@@ -1611,12 +1819,66 @@ client.on("interactionCreate", async (interaction) => {
           .setTimestamp();
 
         await applicationChannel.send({
-          content: `${interaction.user} submitted a YouTuber application.`,
+          content: `${interaction.user} submitted a Media application.`,
           embeds: [applicationEmbed]
         });
 
         await interaction.reply({
-          content: "Your YouTuber application was submitted successfully.",
+          content: "Your Media application was submitted successfully.",
+          ephemeral: true
+        });
+        return;
+      }
+
+      if (interaction.customId.startsWith("submit-panel:")) {
+        const panelId = interaction.customId.split(":")[1];
+        const panel = getApplicationPanel(interaction.guild.id, panelId);
+        if (!panel) {
+          await interaction.reply({
+            content: "This application panel is no longer available.",
+            ephemeral: true
+          });
+          return;
+        }
+
+        const reviewChannel = interaction.guild.channels.cache.get(panel.reviewChannelId);
+        if (!reviewChannel || reviewChannel.type !== ChannelType.GuildText) {
+          await interaction.reply({
+            content: "The review channel for this panel no longer exists.",
+            ephemeral: true
+          });
+          return;
+        }
+
+        const fieldOne = interaction.fields.getTextInputValue("field_one");
+        const fieldTwo = interaction.fields.getTextInputValue("field_two");
+
+        const embed = new EmbedBuilder()
+          .setTitle(panel.title)
+          .setColor(0x6c5ce7)
+          .setDescription(`${interaction.user} submitted an application.`)
+          .addFields(
+            {
+              name: panel.fieldOneLabel,
+              value: fieldOne
+            },
+            {
+              name: panel.fieldTwoLabel,
+              value: fieldTwo
+            }
+          )
+          .setFooter({
+            text: `Applicant ID: ${interaction.user.id}`
+          })
+          .setTimestamp();
+
+        await reviewChannel.send({
+          content: `${interaction.user} submitted a new application.`,
+          embeds: [embed]
+        });
+
+        await interaction.reply({
+          content: "Your application was submitted successfully.",
           ephemeral: true
         });
       }

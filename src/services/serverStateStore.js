@@ -57,9 +57,32 @@ function setGuildMetaValue(guildId, key, value) {
   writeStateStore(store);
 }
 
+function getApplicationPanels(guildId) {
+  const { store, meta } = getGuildMeta(guildId);
+  meta.applicationPanels ??= {};
+  return {
+    store,
+    panels: meta.applicationPanels
+  };
+}
+
+function setApplicationPanel(guildId, panelId, config) {
+  const { store, panels } = getApplicationPanels(guildId);
+  panels[panelId] = config;
+  writeStateStore(store);
+}
+
+function getApplicationPanel(guildId, panelId) {
+  const { panels } = getApplicationPanels(guildId);
+  return panels[panelId] ?? null;
+}
+
 module.exports = {
   getManagedMessages,
   setManagedMessages,
   getGuildMeta,
-  setGuildMetaValue
+  setGuildMetaValue,
+  getApplicationPanels,
+  setApplicationPanel,
+  getApplicationPanel
 };
