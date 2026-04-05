@@ -83,6 +83,16 @@ const commands = [
           { name: "safe", value: "safe" },
           { name: "full", value: "full" }
         )
+    )
+    .addStringOption((option) =>
+      option
+        .setName("scope")
+        .setDescription("Limit setup to a specific area")
+        .setRequired(false)
+        .addChoices(
+          { name: "all", value: "all" },
+          { name: "media", value: "media" }
+        )
     ),
   new SlashCommandBuilder()
     .setName("post-panels")
@@ -500,7 +510,7 @@ function createNavigationEmbed() {
       },
       {
         name: "Media & YouTube",
-        value: "Use #apply-for-youtuber to request the YouTuber role. Approved creators post releases in #youtuber-drops."
+        value: "Use #apply-for-media to request the Media role. Approved creators post releases in #media-drops."
       },
       {
         name: "Regional leadership",
@@ -606,6 +616,10 @@ function createMediaApplyEmbed() {
       {
         name: "What happens next",
         value: "Your application goes to a private review channel that only Media reviewers and staff can see."
+      },
+      {
+        name: "Review result",
+        value: "If approved, you get the Media role and can post in #media-drops. If declined, the bot will DM you with the result."
       }
     );
 }
@@ -711,6 +725,19 @@ function createApplicationPanelButton(customId, label) {
   );
 }
 
+function createMediaReviewButtons(applicantId) {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`media-approve:${applicantId}`)
+      .setLabel("Approve")
+      .setStyle(ButtonStyle.Success),
+    new ButtonBuilder()
+      .setCustomId(`media-decline:${applicantId}`)
+      .setLabel("Decline")
+      .setStyle(ButtonStyle.Danger)
+  );
+}
+
 function createApplicationModal(modalId, title, fieldOneLabel, fieldTwoLabel, fieldOnePlaceholder, fieldTwoPlaceholder) {
   const socialInput = new TextInputBuilder()
     .setCustomId("field_one")
@@ -751,6 +778,17 @@ function createMediaApplicationModal() {
 function isFounder(member) {
   const founderRoleName = fixedRoles.find((role) => role.key === "founder")?.name;
   return Boolean(founderRoleName && member.roles.cache.some((role) => role.name === founderRoleName));
+}
+
+function canReviewMedia(member) {
+  const allowedRoleNames = [
+    fixedRoles.find((role) => role.key === "founder")?.name,
+    fixedRoles.find((role) => role.key === "admin")?.name,
+    fixedRoles.find((role) => role.key === "community")?.name,
+    fixedRoles.find((role) => role.key === "media_reviewer")?.name
+  ].filter(Boolean);
+
+  return member.roles.cache.some((role) => allowedRoleNames.includes(role.name));
 }
 
 async function clearBotMessages(channel) {
@@ -842,7 +880,7 @@ async function syncManagedMessages(channel, scope, payloads) {
   setGuildMetaValue(channel.guild.id, `cleanup:${scope}`, true);
 }
 
-async function syncServer(guild, mode) {
+async function syncServer(guild, mode, scope = "all") {
   await guild.roles.fetch();
   await guild.channels.fetch();
 
@@ -921,44 +959,49 @@ async function syncServer(guild, mode) {
   const orderedCategories = [];
   const baseOverwrites = buildBaseOverwrites(guild, adminRoleIds);
   const verifiedOverwrites = buildVerifiedOverwrites(guild, verifiedRoleId, adminRoleIds);
+  const syncAll = scope === "all";
+  const syncMediaOnly = scope === "media";
 
-  const onboardingCategory = await ensureCategory(guild, "🚀 Start Here", baseOverwrites);
-  orderedCategories.push(onboardingCategory);
+  let onboardingCategory = null;
+  if (syncAll) {
+    onboardingCategory = await ensureCategory(guild, "🚀 Start Here", baseOverwrites);
+    orderedCategories.push(onboardingCategory);
 
-  for (const channelDefinition of announcementChannels) {
-    let overwrites = baseOverwrites;
+    for (const channelDefinition of announcementChannels) {
+      let overwrites = baseOverwrites;
 
-    if (["welcome-start-here", "rules", "language-guide", "navigation", "choose-your-roles"].includes(channelDefinition.name)) {
-      overwrites = buildReadOnlyOverwrites(guild, visibleVerifiedRoles, onboardingWriters);
-    }
-
-    if (channelDefinition.name === "announcements") {
-      overwrites = buildReadOnlyOverwrites(guild, visibleVerifiedRoles, onboardingWriters);
-    }
-
-    await ensureChildChannel(guild, onboardingCategory, channelDefinition, overwrites);
-  }
-  await positionChildren(guild, onboardingCategory, announcementChannels);
-
-  for (const categoryDefinition of publicCategories) {
-    const category = await ensureCategory(guild, categoryDefinition.name, verifiedOverwrites);
-    orderedCategories.push(category);
-
-    for (const channelDefinition of categoryDefinition.channels) {
-      let overwrites = verifiedOverwrites;
-
-      if (channelDefinition.name === "resources") {
+      if (["welcome-start-here", "rules", "language-guide", "navigation", "choose-your-roles"].includes(channelDefinition.name)) {
         overwrites = buildReadOnlyOverwrites(guild, visibleVerifiedRoles, onboardingWriters);
       }
 
-      if (channelDefinition.name === "how-to-get-help") {
+      if (channelDefinition.name === "announcements") {
         overwrites = buildReadOnlyOverwrites(guild, visibleVerifiedRoles, onboardingWriters);
       }
 
-      await ensureChildChannel(guild, category, channelDefinition, overwrites);
+      await ensureChildChannel(guild, onboardingCategory, channelDefinition, overwrites);
     }
+    await positionChildren(guild, onboardingCategory, announcementChannels);
 
-    await positionChildren(guild, category, categoryDefinition.channels);
+    for (const categoryDefinition of publicCategories) {
+      const category = await ensureCategory(guild, categoryDefinition.name, verifiedOverwrites);
+      orderedCategories.push(category);
+
+      for (const channelDefinition of categoryDefinition.channels) {
+        let overwrites = verifiedOverwrites;
+
+        if (channelDefinition.name === "resources") {
+          overwrites = buildReadOnlyOverwrites(guild, visibleVerifiedRoles, onboardingWriters);
+        }
+
+        if (channelDefinition.name === "how-to-get-help") {
+          overwrites = buildReadOnlyOverwrites(guild, visibleVerifiedRoles, onboardingWriters);
+        }
+
+        await ensureChildChannel(guild, category, channelDefinition, overwrites);
+      }
+
+      await positionChildren(guild, category, categoryDefinition.channels);
+    }
   }
 
   const media = await ensureCategory(guild, mediaCategory.name, verifiedOverwrites);
@@ -969,7 +1012,7 @@ async function syncServer(guild, mode) {
       overwrites = buildReadOnlyOverwrites(guild, visibleVerifiedRoles, founderAndCommunity);
     }
     if (channelDefinition.name === "apply-for-media") {
-      overwrites = buildVisibleWriteOverwrites(guild, [verifiedRoleId, ...adminRoleIds], [verifiedRoleId, ...adminRoleIds]);
+      overwrites = buildReadOnlyOverwrites(guild, [verifiedRoleId, ...adminRoleIds], founderAndCommunity);
     }
     if (channelDefinition.name === "media-drops") {
       overwrites = buildReadOnlyOverwrites(
@@ -1006,55 +1049,60 @@ async function syncServer(guild, mode) {
   }
   await positionChildren(guild, reviewDesk, reviewCategory.channels);
 
-  const applications = await ensureCategory(guild, applicationCategory.name, verifiedOverwrites);
-  orderedCategories.push(applications);
-  for (const channelDefinition of applicationCategory.channels) {
-    let overwrites = verifiedOverwrites;
-    if (channelDefinition.name === "region-leader-info") {
-      overwrites = buildReadOnlyOverwrites(guild, visibleVerifiedRoles, founderAndCommunity);
+  let applications = null;
+  if (syncAll) {
+    applications = await ensureCategory(guild, applicationCategory.name, verifiedOverwrites);
+    orderedCategories.push(applications);
+    for (const channelDefinition of applicationCategory.channels) {
+      let overwrites = verifiedOverwrites;
+      if (channelDefinition.name === "region-leader-info") {
+        overwrites = buildReadOnlyOverwrites(guild, visibleVerifiedRoles, founderAndCommunity);
+      }
+      if (channelDefinition.name === "apply-for-region-leader") {
+        overwrites = buildVisibleWriteOverwrites(guild, [verifiedRoleId, ...adminRoleIds], [verifiedRoleId, ...adminRoleIds]);
+      }
+      await ensureChildChannel(guild, applications, channelDefinition, overwrites);
     }
-    if (channelDefinition.name === "apply-for-region-leader") {
-      overwrites = buildVisibleWriteOverwrites(guild, [verifiedRoleId, ...adminRoleIds], [verifiedRoleId, ...adminRoleIds]);
-    }
-    await ensureChildChannel(guild, applications, channelDefinition, overwrites);
+    await positionChildren(guild, applications, applicationCategory.channels);
   }
-  await positionChildren(guild, applications, applicationCategory.channels);
 
-  for (const country of countries) {
-    const countryRole = countryRoleMap.get(country.key);
-    const leaderRole = regionLeaderRoleMap.get(country.key);
-    const overwrites = buildPrivateCountryOverwrites(
-      guild,
-      verifiedRoleId,
-      countryRole.id,
-      adminRoleIds
-    );
-    const category = await ensureCategory(guild, country.categoryName, overwrites);
-    orderedCategories.push(category);
+  if (syncAll) {
+    for (const country of countries) {
+      const countryRole = countryRoleMap.get(country.key);
+      const leaderRole = regionLeaderRoleMap.get(country.key);
+      const overwrites = buildPrivateCountryOverwrites(
+        guild,
+        verifiedRoleId,
+        countryRole.id,
+        adminRoleIds
+      );
+      const category = await ensureCategory(guild, country.categoryName, overwrites);
+      orderedCategories.push(category);
 
-    const countryChannels = [
-      { type: "text", name: "chat", topic: `${country.name} community chat.` },
-      { type: "text", name: "regional-news", topic: `${country.name} local news and updates.` },
-      { type: "text", name: "help", topic: `${country.name} help and support channel.` },
-      { type: "text", name: "showcase", topic: `${country.name} builds, scripts, art, and projects.` },
-      { type: "voice", name: `${country.name} Voice` }
-    ];
+      const countryChannels = [
+        { type: "text", name: "chat", topic: `${country.name} community chat.` },
+        { type: "text", name: "regional-news", topic: `${country.name} local news and updates.` },
+        { type: "text", name: "help", topic: `${country.name} help and support channel.` },
+        { type: "text", name: "showcase", topic: `${country.name} builds, scripts, art, and projects.` },
+        { type: "voice", name: `${country.name} Voice` }
+      ];
 
-    for (const channelDefinition of countryChannels) {
-      const channelOverwrites =
-        channelDefinition.name === "regional-news"
-          ? buildRegionalNewsOverwrites(
-              guild,
-              verifiedRoleId,
-              countryRole.id,
-              leaderRole?.id,
-              adminRoleIds
-            )
-          : overwrites;
-      await ensureChildChannel(guild, category, channelDefinition, channelOverwrites);
+      for (const channelDefinition of countryChannels) {
+        const channelOverwrites =
+          channelDefinition.name === "regional-news"
+            ? buildRegionalNewsOverwrites(
+                guild,
+                verifiedRoleId,
+                countryRole.id,
+                leaderRole?.id,
+                adminRoleIds
+              )
+            : overwrites;
+        await ensureChildChannel(guild, category, channelDefinition, channelOverwrites);
+      }
+
+      await positionChildren(guild, category, countryChannels);
     }
-
-    await positionChildren(guild, category, countryChannels);
   }
 
   const staffOverwrites = [
@@ -1074,26 +1122,33 @@ async function syncServer(guild, mode) {
     }))
   ];
 
-  const staff = await ensureCategory(guild, staffCategory.name, staffOverwrites);
-  orderedCategories.push(staff);
-  for (const channelDefinition of staffCategory.channels) {
-    await ensureChildChannel(guild, staff, channelDefinition, staffOverwrites);
+  let staff = null;
+  if (syncAll) {
+    staff = await ensureCategory(guild, staffCategory.name, staffOverwrites);
+    orderedCategories.push(staff);
+    for (const channelDefinition of staffCategory.channels) {
+      await ensureChildChannel(guild, staff, channelDefinition, staffOverwrites);
+    }
+    await positionChildren(guild, staff, staffCategory.channels);
   }
-  await positionChildren(guild, staff, staffCategory.channels);
 
   const botCategory = await ensureCategory(guild, levelingConfig.botCategoryName, verifiedOverwrites);
-  orderedCategories.push(botCategory);
-  for (const channelDefinition of levelingConfig.botChannels) {
-    const isFeed = channelDefinition.name === "level-feed";
-    const overwrites = isFeed
-      ? buildReadOnlyOverwrites(guild, visibleVerifiedRoles, founderAndCommunity)
-      : verifiedOverwrites;
-    await ensureChildChannel(guild, botCategory, channelDefinition, overwrites);
+  if (syncAll) {
+    orderedCategories.push(botCategory);
+    for (const channelDefinition of levelingConfig.botChannels) {
+      const isFeed = channelDefinition.name === "level-feed";
+      const overwrites = isFeed
+        ? buildReadOnlyOverwrites(guild, visibleVerifiedRoles, founderAndCommunity)
+        : verifiedOverwrites;
+      await ensureChildChannel(guild, botCategory, channelDefinition, overwrites);
+    }
+    await positionChildren(guild, botCategory, levelingConfig.botChannels);
   }
-  await positionChildren(guild, botCategory, levelingConfig.botChannels);
 
-  for (let index = 0; index < orderedCategories.length; index += 1) {
-    await orderedCategories[index].setPosition(index).catch(() => null);
+  if (syncAll) {
+    for (let index = 0; index < orderedCategories.length; index += 1) {
+      await orderedCategories[index].setPosition(index).catch(() => null);
+    }
   }
 
   let rolePosition = guild.roles.cache.size + 5;
@@ -1119,54 +1174,54 @@ async function syncServer(guild, mode) {
     }
   }
 
-  const rulesChannel = guild.channels.cache.find(
-    (channel) => channel.parentId === onboardingCategory.id && channel.name === "rules"
-  );
-  const rolesChannel = guild.channels.cache.find(
-    (channel) => channel.parentId === onboardingCategory.id && channel.name === "choose-your-roles"
-  );
-  const welcomeChannel = guild.channels.cache.find(
-    (channel) => channel.parentId === onboardingCategory.id && channel.name === "welcome-start-here"
-  );
-  const languageGuideChannel = guild.channels.cache.find(
-    (channel) => channel.parentId === onboardingCategory.id && channel.name === "language-guide"
-  );
-  const navigationChannel = guild.channels.cache.find(
-    (channel) => channel.parentId === onboardingCategory.id && channel.name === "navigation"
-  );
+  const rulesChannel = onboardingCategory
+    ? guild.channels.cache.find((channel) => channel.parentId === onboardingCategory.id && channel.name === "rules")
+    : null;
+  const rolesChannel = onboardingCategory
+    ? guild.channels.cache.find((channel) => channel.parentId === onboardingCategory.id && channel.name === "choose-your-roles")
+    : null;
+  const welcomeChannel = onboardingCategory
+    ? guild.channels.cache.find((channel) => channel.parentId === onboardingCategory.id && channel.name === "welcome-start-here")
+    : null;
+  const languageGuideChannel = onboardingCategory
+    ? guild.channels.cache.find((channel) => channel.parentId === onboardingCategory.id && channel.name === "language-guide")
+    : null;
+  const navigationChannel = onboardingCategory
+    ? guild.channels.cache.find((channel) => channel.parentId === onboardingCategory.id && channel.name === "navigation")
+    : null;
   const mediaInfoChannel = guild.channels.cache.find(
     (channel) => channel.parentId === media.id && channel.name === "media-info"
   );
   const mediaApplyChannel = guild.channels.cache.find(
     (channel) => channel.parentId === media.id && channel.name === "apply-for-media"
   );
-  const leaderInfoChannel = guild.channels.cache.find(
-    (channel) => channel.parentId === applications.id && channel.name === "region-leader-info"
-  );
-  const leaderApplyChannel = guild.channels.cache.find(
-    (channel) => channel.parentId === applications.id && channel.name === "apply-for-region-leader"
-  );
+  const leaderInfoChannel = applications
+    ? guild.channels.cache.find((channel) => channel.parentId === applications.id && channel.name === "region-leader-info")
+    : null;
+  const leaderApplyChannel = applications
+    ? guild.channels.cache.find((channel) => channel.parentId === applications.id && channel.name === "apply-for-region-leader")
+    : null;
   const commandsChannel = guild.channels.cache.find(
     (channel) => channel.parentId === botCategory.id && channel.name === "bot-commands"
   );
 
-  if (welcomeChannel) {
+  if (syncAll && welcomeChannel) {
     await postWelcomeMessages(welcomeChannel);
   }
 
-  if (rulesChannel) {
+  if (syncAll && rulesChannel) {
     await postRulesMessages(rulesChannel);
   }
 
-  if (languageGuideChannel) {
+  if (syncAll && languageGuideChannel) {
     await postLanguageGuideMessages(languageGuideChannel);
   }
 
-  if (navigationChannel) {
+  if (syncAll && navigationChannel) {
     await postNavigationMessages(navigationChannel);
   }
 
-  if (rolesChannel) {
+  if (syncAll && rolesChannel) {
     await postRoleSelectionMessages(rolesChannel);
   }
 
@@ -1178,15 +1233,15 @@ async function syncServer(guild, mode) {
     await postYouTuberApplyMessages(mediaApplyChannel);
   }
 
-  if (leaderInfoChannel) {
+  if (syncAll && leaderInfoChannel) {
     await postRegionLeaderInfoMessages(leaderInfoChannel);
   }
 
-  if (leaderApplyChannel) {
+  if (syncAll && leaderApplyChannel) {
     await postRegionLeaderApplyMessages(leaderApplyChannel);
   }
 
-  if (commandsChannel) {
+  if (syncAll && commandsChannel) {
     await postBotCommandsMessages(commandsChannel);
   }
 
@@ -1550,9 +1605,10 @@ client.on("interactionCreate", async (interaction) => {
       if (interaction.commandName === "setup") {
         await interaction.deferReply({ ephemeral: true });
         const mode = interaction.options.getString("mode", true);
-        const result = await syncServer(interaction.guild, mode);
+        const scope = interaction.options.getString("scope") ?? "all";
+        const result = await syncServer(interaction.guild, mode, scope);
         await interaction.editReply(
-          `Setup finished. Fixed roles: ${result.fixedRoleCount}, country roles: ${result.countryRoleCount}, skill roles: ${result.skillRoleCount}, public categories: ${result.publicCategoryCount}, country categories: ${result.countryCategoryCount}.`
+          `Setup finished for scope: ${scope}. Fixed roles: ${result.fixedRoleCount}, country roles: ${result.countryRoleCount}, skill roles: ${result.skillRoleCount}, public categories: ${result.publicCategoryCount}, country categories: ${result.countryCategoryCount}.`
         );
         return;
       }
@@ -1735,6 +1791,72 @@ client.on("interactionCreate", async (interaction) => {
         return;
       }
 
+      if (interaction.customId.startsWith("media-approve:") || interaction.customId.startsWith("media-decline:")) {
+        const member = await interaction.guild.members.fetch(interaction.user.id);
+        if (!canReviewMedia(member)) {
+          await interaction.reply({
+            content: "You do not have permission to review Media applications.",
+            ephemeral: true
+          });
+          return;
+        }
+
+        const [actionPrefix, applicantId] = interaction.customId.split(":");
+        const action = actionPrefix.replace("media-", "");
+        const applicant = await interaction.guild.members.fetch(applicantId).catch(() => null);
+        const mediaRole = interaction.guild.roles.cache.find(
+          (role) => role.name === fixedRoles.find((item) => item.key === "media").name
+        );
+
+        const reviewEmbed = interaction.message.embeds[0]
+          ? EmbedBuilder.from(interaction.message.embeds[0])
+          : new EmbedBuilder().setTitle("Media Application");
+
+        if (action === "approve") {
+          if (applicant && mediaRole && !applicant.roles.cache.has(mediaRole.id)) {
+            await applicant.roles.add(mediaRole).catch(() => null);
+          }
+
+          if (applicant) {
+            await applicant.send(
+              "Your Media application was approved. You can now use the Media role and post new uploads in the media channel."
+            ).catch(() => null);
+          }
+
+          reviewEmbed
+            .setColor(0x2ecc71)
+            .addFields({
+              name: "Review Decision",
+              value: `Approved by ${interaction.user.username}`
+            });
+
+          await interaction.update({
+            embeds: [reviewEmbed],
+            components: []
+          });
+          return;
+        }
+
+        if (applicant) {
+          await applicant.send(
+            "Your Media application was declined. You can improve your application and apply again later."
+          ).catch(() => null);
+        }
+
+        reviewEmbed
+          .setColor(0xe74c3c)
+          .addFields({
+            name: "Review Decision",
+            value: `Declined by ${interaction.user.username}`
+          });
+
+        await interaction.update({
+          embeds: [reviewEmbed],
+          components: []
+        });
+        return;
+      }
+
       if (interaction.customId === "verify-member") {
         const member = await interaction.guild.members.fetch(interaction.user.id);
         const verifiedRole = interaction.guild.roles.cache.find(
@@ -1802,8 +1924,12 @@ client.on("interactionCreate", async (interaction) => {
         const applicationEmbed = new EmbedBuilder()
           .setTitle("New Media Application")
           .setColor(0xff4757)
-          .setDescription(`${interaction.user} submitted a Media application.`)
+          .setDescription("A new private Media application was submitted for review.")
           .addFields(
+            {
+              name: "Applicant",
+              value: `${interaction.user.tag} (${interaction.user.id})`
+            },
             {
               name: "Social Or Creator Link",
               value: socialLink
@@ -1819,8 +1945,9 @@ client.on("interactionCreate", async (interaction) => {
           .setTimestamp();
 
         await applicationChannel.send({
-          content: `${interaction.user} submitted a Media application.`,
-          embeds: [applicationEmbed]
+          embeds: [applicationEmbed],
+          components: [createMediaReviewButtons(interaction.user.id)],
+          allowedMentions: { parse: [] }
         });
 
         await interaction.reply({
@@ -1873,8 +2000,8 @@ client.on("interactionCreate", async (interaction) => {
           .setTimestamp();
 
         await reviewChannel.send({
-          content: `${interaction.user} submitted a new application.`,
-          embeds: [embed]
+          embeds: [embed],
+          allowedMentions: { parse: [] }
         });
 
         await interaction.reply({
