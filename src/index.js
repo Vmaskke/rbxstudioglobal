@@ -235,12 +235,6 @@ const commands = [
         .setDescription("Who you are looking for")
         .setRequired(true)
     )
-    .addStringOption((option) =>
-      option
-        .setName("contact")
-        .setDescription("Discord tag, DM note, or other contact")
-        .setRequired(false)
-    )
     .addAttachmentOption((option) =>
       option
         .setName("image_one")
@@ -1083,10 +1077,10 @@ function createFindTeamModal() {
       ),
       new ActionRowBuilder().addComponents(
         new TextInputBuilder()
-          .setCustomId("ad_contact")
-          .setLabel("Contact (Discord, DM, etc.)")
+          .setCustomId("ad_notes")
+          .setLabel("Extra notes (optional)")
           .setStyle(TextInputStyle.Short)
-          .setPlaceholder("@username / Discord tag / DM me")
+          .setPlaceholder("Timezone, experience, or short extra note")
           .setRequired(false)
           .setMaxLength(140)
       )
@@ -1119,6 +1113,18 @@ function canReviewRegionLeader(member) {
   ].filter(Boolean);
 
   return member.roles.cache.some((role) => allowedRoleNames.includes(role.name));
+}
+
+function getVerifiedRole(guild) {
+  const verifiedRoleName = fixedRoles.find((role) => role.key === "verified")?.name;
+  return verifiedRoleName
+    ? guild.roles.cache.find((role) => role.name === verifiedRoleName) ?? null
+    : null;
+}
+
+function isVerifiedMember(member) {
+  const verifiedRole = getVerifiedRole(member.guild);
+  return Boolean(verifiedRole && member.roles.cache.has(verifiedRole.id));
 }
 
 function normalizeCountryInput(value) {
@@ -1321,7 +1327,7 @@ function parseImageUrls(input) {
     .slice(0, 2);
 }
 
-function buildFindTeamEmbed({ author, title, description, reward, rolesNeeded, contact, imageUrls }) {
+function buildFindTeamEmbed({ author, title, description, reward, rolesNeeded, contact, extraNotes, imageUrls }) {
   const embed = new EmbedBuilder()
     .setTitle(title)
     .setColor(0x00b894)
@@ -1337,13 +1343,20 @@ function buildFindTeamEmbed({ author, title, description, reward, rolesNeeded, c
       },
       {
         name: "Contact",
-        value: contact || `${author} or send a DM`
+        value: contact
       }
     )
     .setFooter({
       text: `Posted by ${author.tag}`
     })
     .setTimestamp();
+
+  if (extraNotes) {
+    embed.addFields({
+      name: "Extra Notes",
+      value: extraNotes
+    });
+  }
 
   if (imageUrls[0]) {
     embed.setImage(imageUrls[0]);
@@ -2341,6 +2354,13 @@ client.on("interactionCreate", async (interaction) => {
 
       if (interaction.commandName === "team-ad") {
         await interaction.deferReply({ ephemeral: true });
+        const member = await interaction.guild.members.fetch(interaction.user.id);
+
+        if (!isVerifiedMember(member)) {
+          await interaction.editReply("You need to verify first before posting team ads.");
+          return;
+        }
+
         const { meta } = getGuildMeta(interaction.guild.id);
         const { cooldowns, now, remainingMs } = getFindTeamCooldown(meta, interaction.user.id);
 
@@ -2363,7 +2383,7 @@ client.on("interactionCreate", async (interaction) => {
         const description = interaction.options.getString("description", true);
         const reward = interaction.options.getString("reward", true);
         const rolesNeeded = interaction.options.getString("looking_for", true);
-        const contact = interaction.options.getString("contact") || `${interaction.user} | ${interaction.user.tag}`;
+        const contact = `${interaction.user} | ${interaction.user.tag}`;
         const imageOne = interaction.options.getAttachment("image_one");
         const imageTwo = interaction.options.getAttachment("image_two");
         const imageUrls = [imageOne?.url, imageTwo?.url].filter(Boolean);
@@ -2376,6 +2396,7 @@ client.on("interactionCreate", async (interaction) => {
             reward,
             rolesNeeded,
             contact,
+            extraNotes: null,
             imageUrls
           }),
           ...buildFindTeamImageEmbeds(imageUrls)
@@ -2541,6 +2562,15 @@ client.on("interactionCreate", async (interaction) => {
       }
 
       if (interaction.customId === "open-find-team-post") {
+        const member = await interaction.guild.members.fetch(interaction.user.id);
+        if (!isVerifiedMember(member)) {
+          await interaction.reply({
+            content: "You need to verify first before posting team ads.",
+            ephemeral: true
+          });
+          return;
+        }
+
         await interaction.showModal(createFindTeamModal());
         return;
       }
@@ -2893,11 +2923,20 @@ client.on("interactionCreate", async (interaction) => {
       }
 
       if (interaction.customId === "submit-find-team-post") {
+        const member = await interaction.guild.members.fetch(interaction.user.id);
+        if (!isVerifiedMember(member)) {
+          await interaction.reply({
+            content: "You need to verify first before posting team ads.",
+            ephemeral: true
+          });
+          return;
+        }
+
         const title = interaction.fields.getTextInputValue("ad_title");
         const description = interaction.fields.getTextInputValue("ad_description");
         const reward = interaction.fields.getTextInputValue("ad_reward");
         const rolesNeeded = interaction.fields.getTextInputValue("ad_roles");
-        const contact = interaction.fields.getTextInputValue("ad_contact") || `${interaction.user} | ${interaction.user.tag}`;
+        const extraNotes = interaction.fields.getTextInputValue("ad_notes");
         const { meta } = getGuildMeta(interaction.guild.id);
         const { cooldowns, now, remainingMs } = getFindTeamCooldown(meta, interaction.user.id);
 
@@ -2930,7 +2969,8 @@ client.on("interactionCreate", async (interaction) => {
               description,
               reward,
               rolesNeeded,
-              contact,
+              contact: `${interaction.user} | ${interaction.user.tag}`,
+              extraNotes,
               imageUrls: []
             })
           ],
