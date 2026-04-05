@@ -1,0 +1,25 @@
+{
+  "name": "rbx-studio-global-bot",
+  "version": "1.0.0",
+  "description": "Discord bot for building and managing the Roblox Studio Global community server.",
+  "main": "src/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/index.js",
+    "check": "node --check src/index.js",
+    "lint-config": "node --check src/config/serverTemplate.js"
+  },
+  "keywords": [
+    "discord",
+    "discord-bot",
+    "roblox",
+    "community"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@resvg/resvg-js": "^2.6.2",
+    "discord.js": "^14.19.3",
+    "dotenv": "^16.4.5"
+  }
+}
