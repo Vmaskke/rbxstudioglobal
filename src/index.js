@@ -122,6 +122,7 @@ const commands = [
   new SlashCommandBuilder()
     .setName("setup")
     .setDescription("Create and configure the Roblox Studio Global server structure.")
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addStringOption((option) =>
       option
         .setName("mode")
@@ -144,12 +145,15 @@ const commands = [
     ),
   new SlashCommandBuilder()
     .setName("post-panels")
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .setDescription("Post the onboarding, rules, and role selection panels in the current channel."),
   new SlashCommandBuilder()
     .setName("audit")
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .setDescription("Inspect the current server and summarize roles, categories, and channels."),
   new SlashCommandBuilder()
     .setName("refresh-commands")
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .setDescription("Re-register slash commands for this guild."),
   new SlashCommandBuilder()
     .setName("rank")
@@ -249,6 +253,7 @@ const commands = [
     ),
   new SlashCommandBuilder()
     .setName("create-application-panel")
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .setDescription("Founder-only: create a two-field application panel in any channel.")
     .addChannelOption((option) =>
       option
@@ -2243,6 +2248,15 @@ client.on("interactionCreate", async (interaction) => {
       }
 
       if (interaction.commandName === "setup") {
+        const member = await interaction.guild.members.fetch(interaction.user.id);
+        if (!isFounder(member)) {
+          await interaction.reply({
+            content: "Only the Founder can use this server management command.",
+            ephemeral: true
+          });
+          return;
+        }
+
         await interaction.deferReply({ ephemeral: true });
         const mode = interaction.options.getString("mode", true);
         const scope = interaction.options.getString("scope") ?? "all";
@@ -2254,6 +2268,15 @@ client.on("interactionCreate", async (interaction) => {
       }
 
       if (interaction.commandName === "post-panels") {
+        const member = await interaction.guild.members.fetch(interaction.user.id);
+        if (!isFounder(member)) {
+          await interaction.reply({
+            content: "Only the Founder can use this server management command.",
+            ephemeral: true
+          });
+          return;
+        }
+
         await interaction.deferReply({ ephemeral: true });
         await postPanels(interaction.channel);
         await interaction.editReply("Panels were rebuilt in this channel.");
@@ -2261,6 +2284,15 @@ client.on("interactionCreate", async (interaction) => {
       }
 
       if (interaction.commandName === "audit") {
+        const member = await interaction.guild.members.fetch(interaction.user.id);
+        if (!isFounder(member)) {
+          await interaction.reply({
+            content: "Only the Founder can use this server management command.",
+            ephemeral: true
+          });
+          return;
+        }
+
         await interaction.reply({
           embeds: [buildAuditSummary(interaction.guild)],
           ephemeral: true
@@ -2269,6 +2301,15 @@ client.on("interactionCreate", async (interaction) => {
       }
 
       if (interaction.commandName === "refresh-commands") {
+        const member = await interaction.guild.members.fetch(interaction.user.id);
+        if (!isFounder(member)) {
+          await interaction.reply({
+            content: "Only the Founder can use this server management command.",
+            ephemeral: true
+          });
+          return;
+        }
+
         await interaction.deferReply({ ephemeral: true });
         setGuildMetaValue(guildId, "commandsSignature", null);
         await registerCommands();
