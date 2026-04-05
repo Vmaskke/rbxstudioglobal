@@ -769,16 +769,13 @@ function createCommandsEmbed() {
   return new EmbedBuilder()
     .setTitle("Bot Commands")
     .setColor(0x00cec9)
-    .setDescription("Main slash commands available in this server.")
+    .setDescription("Main user commands available in this server.")
     .addFields(
-      { name: "/setup", value: "Create or sync the full server structure. Use scope:media for Media-only updates." },
-      { name: "/audit", value: "Inspect channels, categories, and roles." },
       { name: "/rank", value: "Generate a rank card image for yourself or another member." },
       { name: "/leaderboard", value: "Show the top XP users." },
       { name: "/tr", value: "Translate text or a message link into your country language." },
       { name: "/team-ad", value: "Publish a team ad with uploaded images into #team-board." },
-      { name: "/8ball, /roll, /studio-idea", value: "Small fun commands for the community." },
-      { name: "/refresh-commands", value: "Force-refresh slash commands after updates." }
+      { name: "/8ball, /roll, /studio-idea", value: "Small fun commands for the community." }
     );
 }
 
