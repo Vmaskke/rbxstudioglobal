@@ -236,7 +236,8 @@ const mediaCategory = {
 const reviewCategory = {
   name: "🗂 Review Desk",
   channels: [
-    { type: "text", name: "media-applications", topic: "Private review queue for Media applications." }
+    { type: "text", name: "media-applications", topic: "Private review queue for Media applications." },
+    { type: "text", name: "region-leader-applications", topic: "Private review queue for Region Leader applications." }
   ]
 };
 

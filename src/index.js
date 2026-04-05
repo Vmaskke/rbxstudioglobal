@@ -738,6 +738,25 @@ function createRegionLeaderInfoEmbed() {
     );
 }
 
+function createRegionLeaderApplyEmbed() {
+  return new EmbedBuilder()
+    .setTitle("Apply For Region Leader")
+    .setColor(0xfdcb6e)
+    .setDescription(
+      "Press the button below to apply. Your application goes to a private review channel, and if approved you will receive the leader role for your chosen region."
+    )
+    .addFields(
+      {
+        name: "What to include",
+        value: "Your region or country, your timezone, your main language, and why you want to lead that community."
+      },
+      {
+        name: "If approved",
+        value: "You will receive the specific regional leader role and gain access to post regional news in that region."
+      }
+    );
+}
+
 function createVerificationEmbed() {
   return new EmbedBuilder()
     .setTitle("Verification Required")
@@ -806,6 +825,15 @@ function createMediaApplyButton() {
   );
 }
 
+function createRegionLeaderApplyButton() {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId("open-region-leader-application")
+      .setLabel("Apply For Region Leader")
+      .setStyle(ButtonStyle.Primary)
+  );
+}
+
 function createApplicationPanelEmbed(title, description) {
   return new EmbedBuilder()
     .setTitle(title)
@@ -830,6 +858,19 @@ function createMediaReviewButtons(applicantId) {
       .setStyle(ButtonStyle.Success),
     new ButtonBuilder()
       .setCustomId(`media-decline:${applicantId}`)
+      .setLabel("Decline")
+      .setStyle(ButtonStyle.Danger)
+  );
+}
+
+function createRegionLeaderReviewButtons(applicantId) {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`region-leader-approve:${applicantId}`)
+      .setLabel("Approve")
+      .setStyle(ButtonStyle.Success),
+    new ButtonBuilder()
+      .setCustomId(`region-leader-decline:${applicantId}`)
       .setLabel("Decline")
       .setStyle(ButtonStyle.Danger)
   );
@@ -880,6 +921,17 @@ function createMediaApplicationModal() {
   );
 }
 
+function createRegionLeaderApplicationModal() {
+  return createApplicationModal(
+    "submit-region-leader-application",
+    "Region Leader Application",
+    "Region or country you want to lead",
+    "Timezone, language, and why you",
+    "Ukraine / USA / Kazakhstan / Russia",
+    "Tell us about yourself, your timezone, your language, and why you want to lead this region."
+  );
+}
+
 function isFounder(member) {
   const founderRoleName = fixedRoles.find((role) => role.key === "founder")?.name;
   return Boolean(founderRoleName && member.roles.cache.some((role) => role.name === founderRoleName));
@@ -894,6 +946,49 @@ function canReviewMedia(member) {
   ].filter(Boolean);
 
   return member.roles.cache.some((role) => allowedRoleNames.includes(role.name));
+}
+
+function canReviewRegionLeader(member) {
+  const allowedRoleNames = [
+    fixedRoles.find((role) => role.key === "founder")?.name,
+    fixedRoles.find((role) => role.key === "admin")?.name,
+    fixedRoles.find((role) => role.key === "moderator")?.name,
+    fixedRoles.find((role) => role.key === "community")?.name,
+    fixedRoles.find((role) => role.key === "country_lead")?.name
+  ].filter(Boolean);
+
+  return member.roles.cache.some((role) => allowedRoleNames.includes(role.name));
+}
+
+function normalizeCountryInput(value) {
+  return value
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^\p{L}\p{N}\s]/gu, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function resolveCountryFromInput(input) {
+  const normalized = normalizeCountryInput(input);
+  if (!normalized) {
+    return null;
+  }
+
+  return countries.find((country) => {
+    const variants = [
+      country.key,
+      country.name,
+      country.label,
+      `${country.name} leader`,
+      `${country.label} leader`,
+      country.emoji
+    ]
+      .filter(Boolean)
+      .map((value) => normalizeCountryInput(value));
+
+    return variants.includes(normalized);
+  }) ?? null;
 }
 
 function detectPreferredLanguage(member) {
@@ -1269,7 +1364,14 @@ async function syncServer(guild, mode, scope = "all") {
       id: guild.roles.everyone.id,
       deny: [PermissionFlagsBits.ViewChannel]
     },
-    ...[ensuredFixedRoles.founder.id, ensuredFixedRoles.admin.id, ensuredFixedRoles.community.id, mediaReviewerRoleId]
+    ...[
+      ensuredFixedRoles.founder.id,
+      ensuredFixedRoles.admin.id,
+      ensuredFixedRoles.moderator.id,
+      ensuredFixedRoles.community.id,
+      ensuredFixedRoles.country_lead.id,
+      mediaReviewerRoleId
+    ]
       .filter(Boolean)
       .map((roleId) => ({
         id: roleId,
@@ -1298,7 +1400,7 @@ async function syncServer(guild, mode, scope = "all") {
         overwrites = buildReadOnlyOverwrites(guild, visibleVerifiedRoles, founderAndCommunity);
       }
       if (channelDefinition.name === "apply-for-region-leader") {
-        overwrites = buildVisibleWriteOverwrites(guild, [verifiedRoleId, ...adminRoleIds], [verifiedRoleId, ...adminRoleIds]);
+        overwrites = buildReadOnlyOverwrites(guild, [verifiedRoleId, ...adminRoleIds], founderAndCommunity);
       }
       await ensureChildChannel(guild, applications, channelDefinition, overwrites);
     }
@@ -1684,8 +1786,8 @@ async function postRegionLeaderInfoMessages(channel) {
 async function postRegionLeaderApplyMessages(channel) {
   await syncManagedMessages(channel, "leadership:apply", [
     {
-      content:
-        "Apply here to become a region leader. Tell us your country, timezone, language, moderation experience, and how you will keep your local hub active."
+      embeds: [createRegionLeaderApplyEmbed()],
+      components: [createRegionLeaderApplyButton()]
     }
   ]);
 }
@@ -2117,6 +2219,11 @@ client.on("interactionCreate", async (interaction) => {
         return;
       }
 
+      if (interaction.customId === "open-region-leader-application") {
+        await interaction.showModal(createRegionLeaderApplicationModal());
+        return;
+      }
+
       if (interaction.customId.startsWith("open-panel:")) {
         const panelId = interaction.customId.split(":")[1];
         const panel = getApplicationPanel(interaction.guild.id, panelId);
@@ -2198,6 +2305,94 @@ client.on("interactionCreate", async (interaction) => {
         if (applicant) {
           await applicant.send(
             "Your Media application was declined. You can improve your application and apply again later."
+          ).catch(() => null);
+        }
+
+        reviewEmbed
+          .setColor(0xe74c3c)
+          .addFields({
+            name: "Review Decision",
+            value: `Declined by ${interaction.user.username}`
+          });
+
+        await interaction.update({
+          embeds: [reviewEmbed],
+          components: []
+        });
+        return;
+      }
+
+      if (
+        interaction.customId.startsWith("region-leader-approve:")
+        || interaction.customId.startsWith("region-leader-decline:")
+      ) {
+        const member = await interaction.guild.members.fetch(interaction.user.id);
+        if (!canReviewRegionLeader(member)) {
+          await interaction.reply({
+            content: "You do not have permission to review Region Leader applications.",
+            ephemeral: true
+          });
+          return;
+        }
+
+        const [actionPrefix, applicantId] = interaction.customId.split(":");
+        const action = actionPrefix.replace("region-leader-", "");
+        const applicant = await interaction.guild.members.fetch(applicantId).catch(() => null);
+        const reviewEmbed = interaction.message.embeds[0]
+          ? EmbedBuilder.from(interaction.message.embeds[0])
+          : new EmbedBuilder().setTitle("Region Leader Application");
+
+        const regionField = reviewEmbed.data.fields?.find((field) => field.name === "Requested Region");
+        const region = regionField ? resolveCountryFromInput(regionField.value) : null;
+        const roleToGrant = region
+          ? interaction.guild.roles.cache.find((role) => role.name === `${region.emoji} ${region.name} Leader`)
+          : null;
+
+        if (action === "approve") {
+          if (!region || !roleToGrant) {
+            await interaction.reply({
+              content: "This application does not contain a valid region, so I could not assign the leader role.",
+              ephemeral: true
+            });
+            return;
+          }
+
+          if (applicant) {
+            for (const country of countries) {
+              const leaderRole = interaction.guild.roles.cache.find(
+                (role) => role.name === `${country.emoji} ${country.name} Leader`
+              );
+              if (leaderRole && applicant.roles.cache.has(leaderRole.id) && leaderRole.id !== roleToGrant.id) {
+                await applicant.roles.remove(leaderRole).catch(() => null);
+              }
+            }
+
+            if (!applicant.roles.cache.has(roleToGrant.id)) {
+              await applicant.roles.add(roleToGrant).catch(() => null);
+            }
+
+            await applicant.send(
+              `Your Region Leader application was approved. You now lead ${region.name} and can post regional news in that hub.`
+            ).catch(() => null);
+          }
+
+          reviewEmbed
+            .setColor(0x2ecc71)
+            .addFields({
+              name: "Review Decision",
+              value: `Approved by ${interaction.user.username} for ${region.name}`
+            });
+
+          await interaction.update({
+            embeds: [reviewEmbed],
+            components: []
+          });
+          return;
+        }
+
+        if (applicant) {
+          await applicant.send(
+            "Your Region Leader application was declined. You can improve it and apply again later."
           ).catch(() => null);
         }
 
@@ -2310,6 +2505,67 @@ client.on("interactionCreate", async (interaction) => {
 
         await interaction.reply({
           content: "Your Media application was submitted successfully.",
+          ephemeral: true
+        });
+        return;
+      }
+
+      if (interaction.customId === "submit-region-leader-application") {
+        const regionInput = interaction.fields.getTextInputValue("field_one");
+        const aboutApplicant = interaction.fields.getTextInputValue("field_two");
+        const region = resolveCountryFromInput(regionInput);
+
+        if (!region) {
+          await interaction.reply({
+            content: "I could not understand that region. Use a server country like Russia, Ukraine, USA, Turkey, Brazil, Spain, France, Germany, Poland, or Kazakhstan.",
+            ephemeral: true
+          });
+          return;
+        }
+
+        const applicationChannel = interaction.guild.channels.cache.find(
+          (channel) => channel.name === "region-leader-applications" && channel.type === ChannelType.GuildText
+        );
+
+        if (!applicationChannel) {
+          await interaction.reply({
+            content: "The Region Leader review channel was not found. Ask staff to run /setup again.",
+            ephemeral: true
+          });
+          return;
+        }
+
+        const applicationEmbed = new EmbedBuilder()
+          .setTitle("New Region Leader Application")
+          .setColor(0xfdcb6e)
+          .setDescription("A new private Region Leader application was submitted for review.")
+          .addFields(
+            {
+              name: "Applicant",
+              value: `${interaction.user.tag} (${interaction.user.id})`
+            },
+            {
+              name: "Requested Region",
+              value: `${region.emoji} ${region.name}`
+            },
+            {
+              name: "Applicant Details",
+              value: aboutApplicant
+            }
+          )
+          .setFooter({
+            text: `Applicant ID: ${interaction.user.id}`
+          })
+          .setTimestamp();
+
+        await applicationChannel.send({
+          embeds: [applicationEmbed],
+          components: [createRegionLeaderReviewButtons(interaction.user.id)],
+          allowedMentions: { parse: [] }
+        });
+
+        await interaction.reply({
+          content: `Your Region Leader application for ${region.name} was submitted successfully.`,
           ephemeral: true
         });
         return;
