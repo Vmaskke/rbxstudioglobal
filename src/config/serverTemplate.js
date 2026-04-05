@@ -200,6 +200,7 @@ const publicCategories = [
       { type: "text", name: "global-chat", topic: "Main global chat for all countries." },
       { type: "text", name: "global-help", topic: "Ask for help with scripting, building, UI, models, or workflows." },
       { type: "text", name: "find-team", topic: "Find teammates, collaborators, or studios." },
+      { type: "text", name: "team-board", topic: "Published team recruitment ads and collaboration requests." },
       { type: "text", name: "showcase-global", topic: "Share your best work with the whole server." },
       { type: "text", name: "resources", topic: "Plugins, tutorials, tools, docs, and references." },
       { type: "voice", name: "Global Voice" }

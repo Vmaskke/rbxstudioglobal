@@ -209,6 +209,51 @@ const commands = [
     .setName("studio-idea")
     .setDescription("Get a quick Roblox game idea for fun."),
   new SlashCommandBuilder()
+    .setName("team-ad")
+    .setDescription("Publish a formatted recruitment ad with optional uploaded images.")
+    .addStringOption((option) =>
+      option
+        .setName("title")
+        .setDescription("Project or ad title")
+        .setRequired(true)
+    )
+    .addStringOption((option) =>
+      option
+        .setName("description")
+        .setDescription("Describe the project and opening")
+        .setRequired(true)
+    )
+    .addStringOption((option) =>
+      option
+        .setName("reward")
+        .setDescription("Reward, payment, or deal")
+        .setRequired(true)
+    )
+    .addStringOption((option) =>
+      option
+        .setName("looking_for")
+        .setDescription("Who you are looking for")
+        .setRequired(true)
+    )
+    .addStringOption((option) =>
+      option
+        .setName("contact")
+        .setDescription("Discord tag, DM note, or other contact")
+        .setRequired(false)
+    )
+    .addAttachmentOption((option) =>
+      option
+        .setName("image_one")
+        .setDescription("First image")
+        .setRequired(false)
+    )
+    .addAttachmentOption((option) =>
+      option
+        .setName("image_two")
+        .setDescription("Second image")
+        .setRequired(false)
+    ),
+  new SlashCommandBuilder()
     .setName("create-application-panel")
     .setDescription("Founder-only: create a two-field application panel in any channel.")
     .addChannelOption((option) =>
@@ -706,6 +751,7 @@ function createCommandsEmbed() {
       { name: "/rank", value: "Generate a rank card image for yourself or another member." },
       { name: "/leaderboard", value: "Show the top XP users." },
       { name: "/tr", value: "Translate text or a message link into your country language." },
+      { name: "/team-ad", value: "Publish a team ad with uploaded images into #team-board." },
       { name: "/8ball, /roll, /studio-idea", value: "Small fun commands for the community." },
       { name: "/refresh-commands", value: "Force-refresh slash commands after updates." }
     );
@@ -920,7 +966,7 @@ function createFindTeamPanelEmbed() {
     .setTitle("Find Team Board")
     .setColor(0x00b894)
     .setDescription(
-      "Use the button below to publish a proper team post. Random text messages are disabled here so the board stays clean."
+      "Use the button below for a quick text-only team post, or use `/team-ad` if you want to upload real images with your recruitment ad."
     )
     .addFields(
       {
@@ -933,7 +979,7 @@ function createFindTeamPanelEmbed() {
       },
       {
         name: "Images",
-        value: "You can add up to 2 image links in the form."
+        value: "For real uploaded images, use `/team-ad`. The quick button flow is text-only."
       }
     );
 }
@@ -1037,12 +1083,12 @@ function createFindTeamModal() {
       ),
       new ActionRowBuilder().addComponents(
         new TextInputBuilder()
-          .setCustomId("ad_images")
-          .setLabel("Image URLs (up to 2, optional)")
-          .setStyle(TextInputStyle.Paragraph)
-          .setPlaceholder("https://... one per line")
+          .setCustomId("ad_contact")
+          .setLabel("Contact (Discord, DM, etc.)")
+          .setStyle(TextInputStyle.Short)
+          .setPlaceholder("@username / Discord tag / DM me")
           .setRequired(false)
-          .setMaxLength(600)
+          .setMaxLength(140)
       )
     );
 }
@@ -1240,6 +1286,29 @@ function createStudioIdea() {
   return `Make a ${genre} ${twist} ${hook}.`;
 }
 
+function getFindTeamCooldown(meta, userId) {
+  const cooldowns = meta.findTeamCooldowns ?? {};
+  const cooldownMs = 4 * 60 * 60 * 1000;
+  const lastPostedAt = cooldowns[userId] ?? 0;
+  const now = Date.now();
+
+  return {
+    cooldowns,
+    cooldownMs,
+    now,
+    remainingMs: lastPostedAt + cooldownMs - now
+  };
+}
+
+function buildFindTeamImageEmbeds(imageUrls) {
+  return imageUrls.slice(1, 2).map((url) =>
+    new EmbedBuilder()
+      .setTitle("Extra Project Image")
+      .setColor(0x55efc4)
+      .setImage(url)
+  );
+}
+
 function parseImageUrls(input) {
   if (!input) {
     return [];
@@ -1252,7 +1321,7 @@ function parseImageUrls(input) {
     .slice(0, 2);
 }
 
-function buildFindTeamEmbed({ author, title, description, reward, rolesNeeded, imageUrls }) {
+function buildFindTeamEmbed({ author, title, description, reward, rolesNeeded, contact, imageUrls }) {
   const embed = new EmbedBuilder()
     .setTitle(title)
     .setColor(0x00b894)
@@ -1265,6 +1334,10 @@ function buildFindTeamEmbed({ author, title, description, reward, rolesNeeded, i
       {
         name: "Reward",
         value: reward
+      },
+      {
+        name: "Contact",
+        value: contact || `${author} or send a DM`
       }
     )
     .setFooter({
@@ -1497,6 +1570,10 @@ async function syncServer(guild, mode, scope = "all") {
         }
 
         if (channelDefinition.name === "find-team") {
+          overwrites = buildReadOnlyOverwrites(guild, visibleVerifiedRoles, founderAndCommunity);
+        }
+
+        if (channelDefinition.name === "team-board") {
           overwrites = buildReadOnlyOverwrites(guild, visibleVerifiedRoles, founderAndCommunity);
         }
 
@@ -2262,6 +2339,62 @@ client.on("interactionCreate", async (interaction) => {
         return;
       }
 
+      if (interaction.commandName === "team-ad") {
+        await interaction.deferReply({ ephemeral: true });
+        const { meta } = getGuildMeta(interaction.guild.id);
+        const { cooldowns, now, remainingMs } = getFindTeamCooldown(meta, interaction.user.id);
+
+        if (remainingMs > 0) {
+          const remainingHours = Math.ceil(remainingMs / (60 * 60 * 1000));
+          await interaction.editReply(`You can publish another team ad in about ${remainingHours} hour(s).`);
+          return;
+        }
+
+        const targetChannel = interaction.guild.channels.cache.find(
+          (channel) => channel.name === "team-board" && channel.type === ChannelType.GuildText
+        );
+
+        if (!targetChannel) {
+          await interaction.editReply("The team-board channel was not found. Ask staff to run /setup again.");
+          return;
+        }
+
+        const title = interaction.options.getString("title", true);
+        const description = interaction.options.getString("description", true);
+        const reward = interaction.options.getString("reward", true);
+        const rolesNeeded = interaction.options.getString("looking_for", true);
+        const contact = interaction.options.getString("contact") || `${interaction.user} | ${interaction.user.tag}`;
+        const imageOne = interaction.options.getAttachment("image_one");
+        const imageTwo = interaction.options.getAttachment("image_two");
+        const imageUrls = [imageOne?.url, imageTwo?.url].filter(Boolean);
+
+        const embeds = [
+          buildFindTeamEmbed({
+            author: interaction.user,
+            title,
+            description,
+            reward,
+            rolesNeeded,
+            contact,
+            imageUrls
+          }),
+          ...buildFindTeamImageEmbeds(imageUrls)
+        ];
+
+        await targetChannel.send({
+          embeds,
+          allowedMentions: { users: [interaction.user.id], roles: [], parse: [] }
+        });
+
+        setGuildMetaValue(interaction.guild.id, "findTeamCooldowns", {
+          ...cooldowns,
+          [interaction.user.id]: now
+        });
+
+        await interaction.editReply("Your team ad has been published in #team-board.");
+        return;
+      }
+
       if (interaction.commandName === "create-application-panel") {
         const member = await interaction.guild.members.fetch(interaction.user.id);
         if (!isFounder(member)) {
@@ -2764,13 +2897,9 @@ client.on("interactionCreate", async (interaction) => {
         const description = interaction.fields.getTextInputValue("ad_description");
         const reward = interaction.fields.getTextInputValue("ad_reward");
         const rolesNeeded = interaction.fields.getTextInputValue("ad_roles");
-        const imageUrls = parseImageUrls(interaction.fields.getTextInputValue("ad_images"));
+        const contact = interaction.fields.getTextInputValue("ad_contact") || `${interaction.user} | ${interaction.user.tag}`;
         const { meta } = getGuildMeta(interaction.guild.id);
-        const cooldowns = meta.findTeamCooldowns ?? {};
-        const cooldownMs = 4 * 60 * 60 * 1000;
-        const lastPostedAt = cooldowns[interaction.user.id] ?? 0;
-        const now = Date.now();
-        const remainingMs = lastPostedAt + cooldownMs - now;
+        const { cooldowns, now, remainingMs } = getFindTeamCooldown(meta, interaction.user.id);
 
         if (remainingMs > 0) {
           const remainingHours = Math.ceil(remainingMs / (60 * 60 * 1000));
@@ -2782,19 +2911,18 @@ client.on("interactionCreate", async (interaction) => {
         }
 
         const targetChannel = interaction.guild.channels.cache.find(
-          (channel) => channel.name === "find-team" && channel.type === ChannelType.GuildText
+          (channel) => channel.name === "team-board" && channel.type === ChannelType.GuildText
         );
 
         if (!targetChannel) {
           await interaction.reply({
-            content: "The find-team channel was not found. Ask staff to run /setup again.",
+            content: "The team-board channel was not found. Ask staff to run /setup again.",
             ephemeral: true
           });
           return;
         }
 
         await targetChannel.send({
-          content: `${interaction.user} is looking for teammates.`,
           embeds: [
             buildFindTeamEmbed({
               author: interaction.user,
@@ -2802,7 +2930,8 @@ client.on("interactionCreate", async (interaction) => {
               description,
               reward,
               rolesNeeded,
-              imageUrls
+              contact,
+              imageUrls: []
             })
           ],
           allowedMentions: { users: [interaction.user.id], roles: [], parse: [] }
@@ -2814,7 +2943,7 @@ client.on("interactionCreate", async (interaction) => {
         });
 
         await interaction.reply({
-          content: "Your team ad has been published in #find-team.",
+          content: "Your team ad has been published in #team-board. For real uploaded images, use /team-ad.",
           ephemeral: true
         });
         return;
