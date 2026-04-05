@@ -640,21 +640,45 @@ async function syncManagedMessages(channel, scope, payloads) {
   }
 
   const { messages: storedMessages } = getManagedMessages(channel.guild.id, scope);
-  const { meta } = getGuildMeta(channel.guild.id);
+  const recentMessages = await channel.messages.fetch({ limit: 100 }).catch(() => null);
+  const botMessages = recentMessages
+    ? [...recentMessages.values()].filter((message) => message.author.id === client.user.id)
+    : [];
+  const unusedMessages = new Map(botMessages.map((message) => [message.id, message]));
   const nextState = [];
 
   for (let index = 0; index < payloads.length; index += 1) {
     const payload = payloads[index];
     const signature = normalizePayload(payload);
-    const existing = storedMessages[index];
+    const stored = storedMessages[index];
     let message = null;
 
-    if (existing?.messageId) {
-      message = await channel.messages.fetch(existing.messageId).catch(() => null);
+    if (stored?.messageId && unusedMessages.has(stored.messageId)) {
+      message = unusedMessages.get(stored.messageId);
+      unusedMessages.delete(stored.messageId);
+    } else {
+      const matched = botMessages.find(
+        (candidate) =>
+          unusedMessages.has(candidate.id) &&
+          normalizePayload({
+            content: candidate.content || null,
+            embeds: candidate.embeds,
+            components: candidate.components
+          }) === signature
+      );
+
+      if (matched) {
+        message = matched;
+        unusedMessages.delete(matched.id);
+      }
     }
 
     if (message) {
-      if (existing.signature !== signature) {
+      if (normalizePayload({
+        content: message.content || null,
+        embeds: message.embeds,
+        components: message.components
+      }) !== signature) {
         await message.edit(payload).catch(() => null);
       }
       nextState.push({ messageId: message.id, signature });
@@ -667,34 +691,12 @@ async function syncManagedMessages(channel, scope, payloads) {
     }
   }
 
-  for (let index = payloads.length; index < storedMessages.length; index += 1) {
-    const stale = storedMessages[index];
-    if (stale?.messageId) {
-      const staleMessage = await channel.messages.fetch(stale.messageId).catch(() => null);
-      if (staleMessage) {
-        await staleMessage.delete().catch(() => null);
-      }
-    }
+  for (const message of unusedMessages.values()) {
+    await message.delete().catch(() => null);
   }
 
   setManagedMessages(channel.guild.id, scope, nextState);
-
-  const cleanupKey = `cleanup:${scope}`;
-  if (!meta[cleanupKey]) {
-    const recentMessages = await channel.messages.fetch({ limit: 100 }).catch(() => null);
-    if (recentMessages) {
-      const keepIds = new Set(nextState.map((entry) => entry.messageId));
-      const duplicateMessages = recentMessages.filter(
-        (message) => message.author.id === client.user.id && !keepIds.has(message.id)
-      );
-
-      for (const message of duplicateMessages.values()) {
-        await message.delete().catch(() => null);
-      }
-    }
-
-    setGuildMetaValue(channel.guild.id, cleanupKey, true);
-  }
+  setGuildMetaValue(channel.guild.id, `cleanup:${scope}`, true);
 }
 
 async function syncServer(guild, mode) {
