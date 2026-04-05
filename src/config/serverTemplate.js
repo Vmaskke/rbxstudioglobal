@@ -7,7 +7,7 @@ const countries = [
     categoryName: "🇷🇺 Russia Hub",
     language: "Русский",
     localizedWelcome:
-      "Добро пожаловать в Roblox Studio Global. Выбирай роли, знакомься с разработчиками из других стран, проси помощь и показывай свои проекты.",
+      "Добро пожаловать в Roblox Studio Global. Выбирай роли, знакомься с разработчиками из разных стран, проси помощь и показывай свои проекты.",
     localizedRules: [
       "Уважай участников из любых стран и с любым уровнем опыта.",
       "Без оскорблений, хейта, токсичности, NSFW и мошенничества.",
@@ -56,7 +56,7 @@ const countries = [
     name: "Turkey",
     label: "Turkey",
     categoryName: "🇹🇷 Turkey Hub",
-    language: "Türkçe",
+    language: "Turkce",
     localizedWelcome:
       "Roblox Studio Global'a hos geldin. Rollerini sec, farkli ulkelerden gelistiricilerle tanis, yardim iste ve projelerini paylas.",
     localizedRules: [
@@ -64,7 +64,7 @@ const countries = [
       "Hakaret, nefret, toksiklik, NSFW ve dolandiricilik yasaktir.",
       "Sorularini, portfolyolarini ve ekip arayisini dogru kanallarda paylas.",
       "Ekip isi paylasiyorsan katkida bulunanlari belirt.",
-      "Ucretli isler ve alım ilanlari sadece ilgili kanalda olmali."
+      "Ucretli isler ve alim ilanlari sadece ilgili kanalda olmali."
     ]
   },
   {
@@ -73,14 +73,14 @@ const countries = [
     name: "Brazil",
     label: "Brazil",
     categoryName: "🇧🇷 Brazil Hub",
-    language: "Português",
+    language: "Portugues",
     localizedWelcome:
       "Bem-vindo ao Roblox Studio Global. Escolha seus cargos, conheca desenvolvedores de varios paises, peca ajuda e mostre seus projetos.",
     localizedRules: [
       "Respeite pessoas de qualquer pais e qualquer nivel de experiencia.",
       "Sem assedio, odio, toxicidade, NSFW ou golpes.",
       "Publique perguntas, portfolio e busca de equipe nos canais corretos.",
-      "Dê credito aos colaboradores ao mostrar trabalho em equipe.",
+      "De credito aos colaboradores ao mostrar trabalho em equipe.",
       "Comissoes e vagas devem ficar apenas no canal de contratacoes."
     ]
   },
@@ -90,7 +90,7 @@ const countries = [
     name: "Spain",
     label: "Spain",
     categoryName: "🇪🇸 Spain Hub",
-    language: "Español",
+    language: "Espanol",
     localizedWelcome:
       "Bienvenido a Roblox Studio Global. Elige tus roles, conoce desarrolladores de distintos paises, pide ayuda y comparte tus proyectos.",
     localizedRules: [
@@ -107,7 +107,7 @@ const countries = [
     name: "France",
     label: "France",
     categoryName: "🇫🇷 France Hub",
-    language: "Français",
+    language: "Francais",
     localizedWelcome:
       "Bienvenue sur Roblox Studio Global. Choisis tes roles, rencontre des developpeurs de plusieurs pays, demande de l'aide et partage tes projets.",
     localizedRules: [
@@ -126,13 +126,13 @@ const countries = [
     categoryName: "🇩🇪 Germany Hub",
     language: "Deutsch",
     localizedWelcome:
-      "Willkommen bei Roblox Studio Global. Wähle deine Rollen, triff Entwickler aus verschiedenen Ländern, frage nach Hilfe und teile deine Projekte.",
+      "Willkommen bei Roblox Studio Global. Wahle deine Rollen, triff Entwickler aus verschiedenen Landern, frage nach Hilfe und teile deine Projekte.",
     localizedRules: [
       "Respektiere Menschen aus jedem Land und auf jedem Erfahrungsniveau.",
-      "Kein Hass, keine Belästigung, keine Toxizität, kein NSFW und keine Betrugsversuche.",
-      "Poste Fragen, Portfolios und Teamgesuche in die passenden Kanäle.",
+      "Kein Hass, keine Belastigung, keine Toxizitat, kein NSFW und keine Betrugsversuche.",
+      "Poste Fragen, Portfolios und Teamgesuche in die passenden Kanale.",
       "Nenne Mitwirkende, wenn du Teamarbeit zeigst.",
-      "Aufträge und Jobangebote gehören nur in den Hiring-Kanal."
+      "Auftrage und Jobangebote gehoren nur in den Hiring-Kanal."
     ]
   },
   {
@@ -146,8 +146,8 @@ const countries = [
       "Witamy w Roblox Studio Global. Wybierz role, poznaj tworcow z roznych krajow, pros o pomoc i pokazuj swoje projekty.",
     localizedRules: [
       "Szanuj osoby z kazdego kraju i na kazdym poziomie doswiadczenia.",
-      "Bez nękania, nienawisci, toksycznosci, NSFW i oszustw.",
-      "Pytania, portfolio i szukanie zespolu publikuj w odpowiednich kanałach.",
+      "Bez nekana, nienawisci, toksycznosci, NSFW i oszustw.",
+      "Pytania, portfolio i szukanie zespolu publikuj w odpowiednich kanalach.",
       "Oznacz wspoltworcow, gdy pokazujesz prace zespolowa.",
       "Zlecenia i oferty pracy publikuj tylko w kanale hiring."
     ]
@@ -158,15 +158,15 @@ const countries = [
     name: "Kazakhstan",
     label: "Kazakhstan",
     categoryName: "🇰🇿 Kazakhstan Hub",
-    language: "Қазақша",
+    language: "Kazakh",
     localizedWelcome:
-      "Roblox Studio Global серверіне қош келдің. Рөлдеріңді таңда, әртүрлі елдерден келген әзірлеушілермен таныс, көмек сұра және жобаларыңды бөліс.",
+      "Roblox Studio Global serverine qos keldin. Rolderindi tandap, arturli elderden kelgen azirleushilermen tanis, komek sura jane jobalaryndy bolis.",
     localizedRules: [
-      "Кез келген елден және кез келген деңгейден келген қатысушыларды құрметте.",
-      "Қорлау, жеккөрушілік, уытты мінез, NSFW және алаяқтыққа жол жоқ.",
-      "Сұрақтарды, портфолионы және команда іздеуді тиісті арналарға жібер.",
-      "Топтық жұмысты көрсетсең, серіктестеріңді белгіле.",
-      "Ақылы жұмыс пен бос орындарды тек hiring арнасында жарияла."
+      "Kez kelgen elden jane kez kelgen dengeiden kelgen qatysushylardy qurmette.",
+      "Qorlau, jekkorushilik, uytti minez, NSFW jane alayaqtyqqa jol joq.",
+      "Suraqtardy, portfolio jane komanda izdeudi tiisti arnalarga jibер.",
+      "Toptiq jumysty korsetseń, seriktesterindi belgile.",
+      "Aqyly jumys pen bos oryndardy tek hiring arnasında jariyala."
     ]
   }
 ];
@@ -183,31 +183,12 @@ const skillRoles = [
 ];
 
 const announcementChannels = [
-  {
-    type: "text",
-    name: "welcome-start-here",
-    topic: "Start here: read the rules, choose your roles, and enter the global community."
-  },
-  {
-    type: "text",
-    name: "rules",
-    topic: "Server rules and moderation expectations."
-  },
-  {
-    type: "text",
-    name: "language-guide",
-    topic: "Read the welcome and rules in your language, then choose your roles."
-  },
-  {
-    type: "text",
-    name: "choose-your-roles",
-    topic: "Verify yourself first, then choose your country and skill roles."
-  },
-  {
-    type: "text",
-    name: "announcements",
-    topic: "Important updates for the community."
-  }
+  { type: "text", name: "welcome-start-here", topic: "Start here: read the rules, choose your roles, and enter the global community." },
+  { type: "text", name: "rules", topic: "Server rules and moderation expectations." },
+  { type: "text", name: "language-guide", topic: "Read the welcome and rules in your language, then choose your roles." },
+  { type: "text", name: "navigation", topic: "Quick navigation, where to post, and how the server works." },
+  { type: "text", name: "choose-your-roles", topic: "Verify yourself first, then choose your country and skill roles." },
+  { type: "text", name: "announcements", topic: "Important updates for the community." }
 ];
 
 const publicCategories = [
@@ -243,6 +224,23 @@ const publicCategories = [
   }
 ];
 
+const mediaCategory = {
+  name: "🎥 Creator Program",
+  channels: [
+    { type: "text", name: "youtuber-info", topic: "Info about the YouTuber role and where to post videos." },
+    { type: "text", name: "apply-for-youtuber", topic: "Apply for the YouTuber role with your channel links and stats." },
+    { type: "text", name: "youtuber-drops", topic: "Approved YouTubers post their fresh videos here." }
+  ]
+};
+
+const applicationCategory = {
+  name: "📌 Leadership Desk",
+  channels: [
+    { type: "text", name: "region-leader-info", topic: "Read what a region leader does and what is expected." },
+    { type: "text", name: "apply-for-region-leader", topic: "Apply to become the leader for your region." }
+  ]
+};
+
 const staffCategory = {
   name: "🛡️ Staff",
   channels: [
@@ -257,7 +255,8 @@ const fixedRoles = [
   { key: "moderator", name: "🔨 Moderator", color: 0x3498db, hoist: true },
   { key: "community", name: "🌐 Community Team", color: 0x2ecc71, hoist: true },
   { key: "country_lead", name: "📍 Country Lead", color: 0x9b59b6, hoist: true },
-  { key: "verified", name: "✅ Verified", color: 0x95a5a6, hoist: false }
+  { key: "verified", name: "✅ Verified", color: 0x95a5a6, hoist: false },
+  { key: "youtuber", name: "🎥 YouTuber", color: 0xff4757, hoist: true }
 ];
 
 const setupSummary = {
@@ -265,7 +264,7 @@ const setupSummary = {
   welcomeText:
     "Welcome to Roblox Studio Global. Choose your country and creative roles, meet developers from different countries, ask for help, and share your work.",
   serverPitch:
-    "A clean international home for Roblox creators: scripters, builders, animators, modelers, UI designers, VFX artists, sound designers, web developers, and studios.",
+    "A clean international home for Roblox creators: scripters, builders, animators, modelers, UI designers, VFX artists, sound designers, web developers, YouTubers, and studios.",
   rules: [
     "Respect every country, language, and skill level.",
     "No harassment, hate speech, scams, or NSFW content.",
@@ -280,6 +279,8 @@ module.exports = {
   skillRoles,
   announcementChannels,
   publicCategories,
+  mediaCategory,
+  applicationCategory,
   staffCategory,
   fixedRoles,
   setupSummary

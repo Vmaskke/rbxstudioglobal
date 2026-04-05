@@ -17,9 +17,11 @@ const {
 } = require("discord.js");
 
 const {
+  applicationCategory,
   announcementChannels,
   countries,
   fixedRoles,
+  mediaCategory,
   publicCategories,
   setupSummary,
   skillRoles,
@@ -278,6 +280,31 @@ function buildReadOnlyOverwrites(guild, visibleRoleIds, writerRoleIds) {
   return overwrites;
 }
 
+function buildVisibleWriteOverwrites(guild, visibleRoleIds, writerRoleIds) {
+  const overwrites = [
+    {
+      id: guild.roles.everyone.id,
+      deny: [PermissionFlagsBits.SendMessages]
+    }
+  ];
+
+  for (const roleId of visibleRoleIds) {
+    overwrites.push({
+      id: roleId,
+      allow: [PermissionFlagsBits.ViewChannel]
+    });
+  }
+
+  for (const roleId of writerRoleIds) {
+    overwrites.push({
+      id: roleId,
+      allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages]
+    });
+  }
+
+  return overwrites;
+}
+
 function buildVerifiedOverwrites(guild, verifiedRoleId, adminRoleIds) {
   const overwrites = [
     {
@@ -337,6 +364,11 @@ function buildPrivateCountryOverwrites(guild, verifiedRoleId, countryRoleId, adm
   }
 
   return overwrites;
+}
+
+function buildRegionalNewsOverwrites(guild, verifiedRoleId, countryRoleId, leaderRoleId, adminRoleIds) {
+  const writerRoleIds = [countryRoleId, leaderRoleId, ...adminRoleIds].filter(Boolean);
+  return buildReadOnlyOverwrites(guild, [verifiedRoleId, ...adminRoleIds], writerRoleIds);
 }
 
 function createOverviewEmbed() {
@@ -399,6 +431,31 @@ function createChannelGuideEmbed() {
     );
 }
 
+function createNavigationEmbed() {
+  return new EmbedBuilder()
+    .setTitle("Server Navigation")
+    .setColor(0x6c5ce7)
+    .setDescription("Use this as your quick map for the whole server.")
+    .addFields(
+      {
+        name: "Start Here",
+        value: "Read #rules, open #navigation, verify in #choose-your-roles, then pick your country and creative roles."
+      },
+      {
+        name: "Media & YouTube",
+        value: "Use #apply-for-youtuber to request the YouTuber role. Approved creators post releases in #youtuber-drops."
+      },
+      {
+        name: "Regional leadership",
+        value: "Use #apply-for-region-leader if you want to lead activity and publish regional news."
+      },
+      {
+        name: "Regional hubs",
+        value: "Each country hub has chat, help, showcase, regional-news, and voice channels."
+      }
+    );
+}
+
 function createLanguageGuideEmbed() {
   return new EmbedBuilder()
     .setTitle("Language Guide")
@@ -443,6 +500,54 @@ function createLeaderboardEmbed(entries, guild) {
             })
             .join("\n")
         : "No XP data yet."
+    );
+}
+
+function createCommandsEmbed() {
+  return new EmbedBuilder()
+    .setTitle("Bot Commands")
+    .setColor(0x00cec9)
+    .setDescription("Main slash commands available in this server.")
+    .addFields(
+      { name: "/setup", value: "Create or sync the full server structure." },
+      { name: "/audit", value: "Inspect channels, categories, and roles." },
+      { name: "/rank", value: "Generate a rank card image for yourself or another member." },
+      { name: "/leaderboard", value: "Show the top XP users." },
+      { name: "/refresh-commands", value: "Force-refresh slash commands after updates." }
+    );
+}
+
+function createYouTuberInfoEmbed() {
+  return new EmbedBuilder()
+    .setTitle("YouTuber Program")
+    .setColor(0xff4757)
+    .setDescription("Creators can apply for the YouTuber role and then publish fresh videos in the creator channel.")
+    .addFields(
+      {
+        name: "How to apply",
+        value: "Post your YouTube channel link, your niche, your language, and one recent Roblox-related video."
+      },
+      {
+        name: "What approved YouTubers can do",
+        value: "Post new uploads in #youtuber-drops and help grow the international community."
+      }
+    );
+}
+
+function createRegionLeaderInfoEmbed() {
+  return new EmbedBuilder()
+    .setTitle("Region Leader Program")
+    .setColor(0xfdcb6e)
+    .setDescription("Region leaders keep their local community active and publish updates in their own language.")
+    .addFields(
+      {
+        name: "Leader duties",
+        value: "Post regional news, welcome new members, encourage activity, and keep the local hub alive."
+      },
+      {
+        name: "How to apply",
+        value: "Share your country, your timezone, your language, and why you want to lead your region."
+      }
     );
 }
 
@@ -597,6 +702,16 @@ async function syncServer(guild, mode) {
     countryRoleMap.set(country.key, role);
   }
 
+  const regionLeaderRoleMap = new Map();
+  for (const country of countries) {
+    const role = await ensureRole(guild, {
+      name: `${country.emoji} ${country.name} Leader`,
+      color: 0xf39c12,
+      hoist: true
+    });
+    regionLeaderRoleMap.set(country.key, role);
+  }
+
   const skillRoleMap = new Map();
   for (const skill of skillRoles) {
     const role = await ensureRole(guild, {
@@ -615,6 +730,7 @@ async function syncServer(guild, mode) {
     ensuredFixedRoles.country_lead.id
   ];
   const verifiedRoleId = ensuredFixedRoles.verified.id;
+  const youtuberRoleId = ensuredFixedRoles.youtuber.id;
   const onboardingWriters = [ensuredFixedRoles.founder.id, ensuredFixedRoles.community.id];
   const visibleVerifiedRoles = [verifiedRoleId, ...adminRoleIds];
   const founderAndCommunity = [ensuredFixedRoles.founder.id, ensuredFixedRoles.community.id];
@@ -629,7 +745,7 @@ async function syncServer(guild, mode) {
   for (const channelDefinition of announcementChannels) {
     let overwrites = baseOverwrites;
 
-    if (["welcome-start-here", "rules", "language-guide", "choose-your-roles"].includes(channelDefinition.name)) {
+    if (["welcome-start-here", "rules", "language-guide", "navigation", "choose-your-roles"].includes(channelDefinition.name)) {
       overwrites = buildReadOnlyOverwrites(guild, visibleVerifiedRoles, onboardingWriters);
     }
 
@@ -662,8 +778,44 @@ async function syncServer(guild, mode) {
     await positionChildren(guild, category, categoryDefinition.channels);
   }
 
+  const media = await ensureCategory(guild, mediaCategory.name, verifiedOverwrites);
+  orderedCategories.push(media);
+  for (const channelDefinition of mediaCategory.channels) {
+    let overwrites = verifiedOverwrites;
+    if (channelDefinition.name === "youtuber-info") {
+      overwrites = buildReadOnlyOverwrites(guild, visibleVerifiedRoles, founderAndCommunity);
+    }
+    if (channelDefinition.name === "apply-for-youtuber") {
+      overwrites = buildVisibleWriteOverwrites(guild, [verifiedRoleId, ...adminRoleIds], [verifiedRoleId, ...adminRoleIds]);
+    }
+    if (channelDefinition.name === "youtuber-drops") {
+      overwrites = buildReadOnlyOverwrites(
+        guild,
+        [verifiedRoleId, ...adminRoleIds],
+        [youtuberRoleId, ...founderAndCommunity, ...adminRoleIds]
+      );
+    }
+    await ensureChildChannel(guild, media, channelDefinition, overwrites);
+  }
+  await positionChildren(guild, media, mediaCategory.channels);
+
+  const applications = await ensureCategory(guild, applicationCategory.name, verifiedOverwrites);
+  orderedCategories.push(applications);
+  for (const channelDefinition of applicationCategory.channels) {
+    let overwrites = verifiedOverwrites;
+    if (channelDefinition.name === "region-leader-info") {
+      overwrites = buildReadOnlyOverwrites(guild, visibleVerifiedRoles, founderAndCommunity);
+    }
+    if (channelDefinition.name === "apply-for-region-leader") {
+      overwrites = buildVisibleWriteOverwrites(guild, [verifiedRoleId, ...adminRoleIds], [verifiedRoleId, ...adminRoleIds]);
+    }
+    await ensureChildChannel(guild, applications, channelDefinition, overwrites);
+  }
+  await positionChildren(guild, applications, applicationCategory.channels);
+
   for (const country of countries) {
     const countryRole = countryRoleMap.get(country.key);
+    const leaderRole = regionLeaderRoleMap.get(country.key);
     const overwrites = buildPrivateCountryOverwrites(
       guild,
       verifiedRoleId,
@@ -675,13 +827,24 @@ async function syncServer(guild, mode) {
 
     const countryChannels = [
       { type: "text", name: "chat", topic: `${country.name} community chat.` },
+      { type: "text", name: "regional-news", topic: `${country.name} local news and updates.` },
       { type: "text", name: "help", topic: `${country.name} help and support channel.` },
       { type: "text", name: "showcase", topic: `${country.name} builds, scripts, art, and projects.` },
       { type: "voice", name: `${country.name} Voice` }
     ];
 
     for (const channelDefinition of countryChannels) {
-      await ensureChildChannel(guild, category, channelDefinition, overwrites);
+      const channelOverwrites =
+        channelDefinition.name === "regional-news"
+          ? buildRegionalNewsOverwrites(
+              guild,
+              verifiedRoleId,
+              countryRole.id,
+              leaderRole?.id,
+              adminRoleIds
+            )
+          : overwrites;
+      await ensureChildChannel(guild, category, channelDefinition, channelOverwrites);
     }
 
     await positionChildren(guild, category, countryChannels);
@@ -734,7 +897,9 @@ async function syncServer(guild, mode) {
     ensuredFixedRoles.community.id,
     ensuredFixedRoles.country_lead.id,
     ensuredFixedRoles.verified.id,
+    ensuredFixedRoles.youtuber.id,
     ...countries.map((country) => countryRoleMap.get(country.key)?.id).filter(Boolean),
+    ...countries.map((country) => regionLeaderRoleMap.get(country.key)?.id).filter(Boolean),
     ...skillRoles.map((skill) => skillRoleMap.get(skill.key)?.id).filter(Boolean)
   ];
 
@@ -758,6 +923,24 @@ async function syncServer(guild, mode) {
   const languageGuideChannel = guild.channels.cache.find(
     (channel) => channel.parentId === onboardingCategory.id && channel.name === "language-guide"
   );
+  const navigationChannel = guild.channels.cache.find(
+    (channel) => channel.parentId === onboardingCategory.id && channel.name === "navigation"
+  );
+  const youtuberInfoChannel = guild.channels.cache.find(
+    (channel) => channel.parentId === media.id && channel.name === "youtuber-info"
+  );
+  const youtuberApplyChannel = guild.channels.cache.find(
+    (channel) => channel.parentId === media.id && channel.name === "apply-for-youtuber"
+  );
+  const leaderInfoChannel = guild.channels.cache.find(
+    (channel) => channel.parentId === applications.id && channel.name === "region-leader-info"
+  );
+  const leaderApplyChannel = guild.channels.cache.find(
+    (channel) => channel.parentId === applications.id && channel.name === "apply-for-region-leader"
+  );
+  const commandsChannel = guild.channels.cache.find(
+    (channel) => channel.parentId === botCategory.id && channel.name === "bot-commands"
+  );
 
   if (welcomeChannel) {
     await postWelcomeMessages(welcomeChannel);
@@ -771,8 +954,32 @@ async function syncServer(guild, mode) {
     await postLanguageGuideMessages(languageGuideChannel);
   }
 
+  if (navigationChannel) {
+    await postNavigationMessages(navigationChannel);
+  }
+
   if (rolesChannel) {
     await postRoleSelectionMessages(rolesChannel);
+  }
+
+  if (youtuberInfoChannel) {
+    await postYouTuberInfoMessages(youtuberInfoChannel);
+  }
+
+  if (youtuberApplyChannel) {
+    await postYouTuberApplyMessages(youtuberApplyChannel);
+  }
+
+  if (leaderInfoChannel) {
+    await postRegionLeaderInfoMessages(leaderInfoChannel);
+  }
+
+  if (leaderApplyChannel) {
+    await postRegionLeaderApplyMessages(leaderApplyChannel);
+  }
+
+  if (commandsChannel) {
+    await postBotCommandsMessages(commandsChannel);
   }
 
   return {
@@ -904,6 +1111,12 @@ async function postLanguageGuideMessages(channel) {
   ]);
 }
 
+async function postNavigationMessages(channel) {
+  await syncManagedMessages(channel, "onboarding:navigation", [
+    { embeds: [createNavigationEmbed(), createChannelGuideEmbed()] }
+  ]);
+}
+
 async function postRoleSelectionMessages(channel) {
   const payloads = [
     {
@@ -943,6 +1156,42 @@ async function postRoleSelectionMessages(channel) {
   });
 
   await syncManagedMessages(channel, "onboarding:roles", payloads);
+}
+
+async function postYouTuberInfoMessages(channel) {
+  await syncManagedMessages(channel, "media:youtuber-info", [
+    { embeds: [createYouTuberInfoEmbed()] }
+  ]);
+}
+
+async function postYouTuberApplyMessages(channel) {
+  await syncManagedMessages(channel, "media:youtuber-apply", [
+    {
+      content:
+        "Apply here for the YouTuber role. Post your channel link, your audience language, your country, and one recent Roblox-related upload."
+    }
+  ]);
+}
+
+async function postRegionLeaderInfoMessages(channel) {
+  await syncManagedMessages(channel, "leadership:info", [
+    { embeds: [createRegionLeaderInfoEmbed()] }
+  ]);
+}
+
+async function postRegionLeaderApplyMessages(channel) {
+  await syncManagedMessages(channel, "leadership:apply", [
+    {
+      content:
+        "Apply here to become a region leader. Tell us your country, timezone, language, moderation experience, and how you will keep your local hub active."
+    }
+  ]);
+}
+
+async function postBotCommandsMessages(channel) {
+  await syncManagedMessages(channel, "bot:commands", [
+    { embeds: [createCommandsEmbed()] }
+  ]);
 }
 
 async function sendLevelCard(channel, member, xp, levelUp = false) {
