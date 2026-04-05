@@ -511,6 +511,32 @@ function buildPublicReadOnlyOverwrites(guild, writerRoleIds) {
   return overwrites;
 }
 
+function buildHiddenReadOnlyOverwrites(guild, visibleRoleIds, writerRoleIds) {
+  const overwrites = [
+    {
+      id: guild.roles.everyone.id,
+      deny: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages]
+    }
+  ];
+
+  for (const roleId of visibleRoleIds) {
+    overwrites.push({
+      id: roleId,
+      allow: [PermissionFlagsBits.ViewChannel],
+      deny: [PermissionFlagsBits.SendMessages]
+    });
+  }
+
+  for (const roleId of writerRoleIds) {
+    overwrites.push({
+      id: roleId,
+      allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages]
+    });
+  }
+
+  return overwrites;
+}
+
 function buildVisibleWriteOverwrites(guild, visibleRoleIds, writerRoleIds) {
   const overwrites = [
     {
@@ -1583,11 +1609,11 @@ async function syncServer(guild, mode, scope = "all") {
         }
 
         if (channelDefinition.name === "find-team") {
-          overwrites = buildReadOnlyOverwrites(guild, visibleVerifiedRoles, founderAndCommunity);
+          overwrites = buildHiddenReadOnlyOverwrites(guild, visibleVerifiedRoles, founderAndCommunity);
         }
 
         if (channelDefinition.name === "team-board") {
-          overwrites = buildReadOnlyOverwrites(guild, visibleVerifiedRoles, founderAndCommunity);
+          overwrites = buildHiddenReadOnlyOverwrites(guild, visibleVerifiedRoles, founderAndCommunity);
         }
 
         await ensureChildChannel(guild, category, channelDefinition, overwrites);
@@ -1605,7 +1631,7 @@ async function syncServer(guild, mode, scope = "all") {
       overwrites = buildReadOnlyOverwrites(guild, visibleVerifiedRoles, founderAndCommunity);
     }
     if (channelDefinition.name === "apply-for-media") {
-      overwrites = buildReadOnlyOverwrites(guild, [verifiedRoleId, ...adminRoleIds], founderAndCommunity);
+      overwrites = buildHiddenReadOnlyOverwrites(guild, [verifiedRoleId, ...adminRoleIds], founderAndCommunity);
     }
     if (channelDefinition.name === "media-drops") {
       overwrites = buildReadOnlyOverwrites(
@@ -1658,9 +1684,9 @@ async function syncServer(guild, mode, scope = "all") {
       if (channelDefinition.name === "region-leader-info") {
         overwrites = buildReadOnlyOverwrites(guild, visibleVerifiedRoles, founderAndCommunity);
       }
-      if (channelDefinition.name === "apply-for-region-leader") {
-        overwrites = buildReadOnlyOverwrites(guild, [verifiedRoleId, ...adminRoleIds], founderAndCommunity);
-      }
+        if (channelDefinition.name === "apply-for-region-leader") {
+          overwrites = buildHiddenReadOnlyOverwrites(guild, [verifiedRoleId, ...adminRoleIds], founderAndCommunity);
+        }
       await ensureChildChannel(guild, applications, channelDefinition, overwrites);
     }
     await positionChildren(guild, applications, applicationCategory.channels);
