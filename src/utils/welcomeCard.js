@@ -11,99 +11,147 @@ function escapeXml(value) {
 
 const welcomeThemes = [
   {
-    name: "Aurora",
-    background: ["#07111E", "#123458", "#1F6E8C"],
-    accent: "#72F2EB",
-    glow: "#7B61FF"
+    name: "Signal",
+    background: ["#08111F", "#132238", "#1C3D5A"],
+    accent: "#7EE7FF",
+    secondary: "#7B61FF",
+    panel: "#0D1726"
   },
   {
-    name: "Sunset",
-    background: ["#1B1028", "#582534", "#CC5A71"],
+    name: "Gold",
+    background: ["#120E09", "#332417", "#6B4A2B"],
     accent: "#FFD166",
-    glow: "#FF7B54"
+    secondary: "#FF9F1C",
+    panel: "#17100B"
   },
   {
-    name: "Mint",
-    background: ["#091A16", "#12372A", "#436850"],
-    accent: "#A8FFB5",
-    glow: "#47E5BC"
+    name: "Emerald",
+    background: ["#071611", "#113328", "#1F5C4A"],
+    accent: "#78FFD6",
+    secondary: "#40C9A2",
+    panel: "#0B1914"
   },
   {
-    name: "Skyline",
-    background: ["#081222", "#173E67", "#3E78B2"],
-    accent: "#DDF4FF",
-    glow: "#56CCF2"
+    name: "Neon",
+    background: ["#120A18", "#29163A", "#4C2575"],
+    accent: "#FF8AE2",
+    secondary: "#7AF7FF",
+    panel: "#170F22"
   }
 ];
 
 const welcomeLines = [
-  "Your passport to the global Roblox creator scene.",
-  "A new builder of worlds just arrived.",
-  "Fresh energy for scripts, builds, and ideas.",
-  "Another creator joined the studio floor.",
-  "The international dev lobby just got stronger."
+  "A new creator just entered the global studio floor.",
+  "Fresh ideas, new skills, and another future project lead.",
+  "One more builder of worlds joined the network.",
+  "The server just gained another creative spark.",
+  "A new passport stamped for the Roblox creator lobby."
 ];
 
 function pickRandom(items) {
   return items[Math.floor(Math.random() * items.length)];
 }
 
-function createWelcomeCardSvg({ username, avatarUrl, memberCount, serverName }) {
+function createFallbackAvatarDataUri() {
+  const svg = `
+  <svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#1F3B5B"/>
+        <stop offset="100%" stop-color="#6C5CE7"/>
+      </linearGradient>
+    </defs>
+    <rect width="256" height="256" rx="128" fill="url(#g)"/>
+    <circle cx="128" cy="96" r="42" fill="rgba(255,255,255,0.85)"/>
+    <path d="M56 212c12-42 44-62 72-62s60 20 72 62" fill="rgba(255,255,255,0.85)"/>
+  </svg>
+  `;
+
+  return `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
+}
+
+async function fetchAvatarDataUri(avatarUrl) {
+  try {
+    const response = await fetch(avatarUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0"
+      }
+    });
+
+    if (!response.ok) {
+      return createFallbackAvatarDataUri();
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const contentType = response.headers.get("content-type") || "image/png";
+    return `data:${contentType};base64,${Buffer.from(arrayBuffer).toString("base64")}`;
+  } catch {
+    return createFallbackAvatarDataUri();
+  }
+}
+
+async function createWelcomeCardSvg({ username, avatarUrl, memberCount, serverName }) {
   const theme = pickRandom(welcomeThemes);
   const line = pickRandom(welcomeLines);
+  const embeddedAvatar = await fetchAvatarDataUri(avatarUrl);
 
   return `
-  <svg width="1080" height="420" viewBox="0 0 1080 420" xmlns="http://www.w3.org/2000/svg">
+  <svg width="1200" height="500" viewBox="0 0 1200 500" xmlns="http://www.w3.org/2000/svg">
     <defs>
       <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
         <stop offset="0%" stop-color="${theme.background[0]}"/>
-        <stop offset="55%" stop-color="${theme.background[1]}"/>
+        <stop offset="48%" stop-color="${theme.background[1]}"/>
         <stop offset="100%" stop-color="${theme.background[2]}"/>
       </linearGradient>
-      <linearGradient id="panel" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stop-color="rgba(255,255,255,0.12)"/>
-        <stop offset="100%" stop-color="rgba(255,255,255,0.04)"/>
+      <linearGradient id="edge" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="${theme.accent}"/>
+        <stop offset="100%" stop-color="${theme.secondary}"/>
       </linearGradient>
       <clipPath id="avatarClip">
-        <circle cx="178" cy="210" r="96" />
+        <rect x="92" y="112" width="220" height="220" rx="42"/>
       </clipPath>
-      <filter id="blur" x="-20%" y="-20%" width="140%" height="140%">
-        <feGaussianBlur stdDeviation="22"/>
+      <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+        <feGaussianBlur stdDeviation="28"/>
       </filter>
     </defs>
 
-    <rect width="1080" height="420" rx="32" fill="url(#bg)"/>
-    <circle cx="920" cy="80" r="130" fill="${theme.glow}" opacity="0.18" filter="url(#blur)"/>
-    <circle cx="180" cy="360" r="120" fill="${theme.accent}" opacity="0.14" filter="url(#blur)"/>
-    <circle cx="760" cy="330" r="90" fill="#FFFFFF" opacity="0.06" filter="url(#blur)"/>
+    <rect width="1200" height="500" rx="34" fill="url(#bg)"/>
+    <circle cx="1020" cy="96" r="150" fill="${theme.secondary}" opacity="0.16" filter="url(#soft)"/>
+    <circle cx="160" cy="420" r="130" fill="${theme.accent}" opacity="0.12" filter="url(#soft)"/>
+    <circle cx="860" cy="410" r="110" fill="#FFFFFF" opacity="0.06" filter="url(#soft)"/>
 
-    <rect x="32" y="32" width="1016" height="356" rx="28" fill="rgba(4,10,18,0.34)" stroke="rgba(255,255,255,0.12)"/>
-    <rect x="56" y="56" width="968" height="308" rx="24" fill="url(#panel)" stroke="rgba(255,255,255,0.08)"/>
+    <rect x="34" y="34" width="1132" height="432" rx="30" fill="rgba(4,10,18,0.24)" stroke="rgba(255,255,255,0.10)"/>
+    <rect x="54" y="54" width="1092" height="392" rx="28" fill="${theme.panel}" opacity="0.72" stroke="rgba(255,255,255,0.08)"/>
+    <rect x="54" y="54" width="1092" height="10" rx="5" fill="url(#edge)"/>
 
-    <circle cx="178" cy="210" r="104" fill="rgba(255,255,255,0.08)" stroke="${theme.accent}" stroke-width="4"/>
-    <image href="${avatarUrl}" x="82" y="114" width="192" height="192" clip-path="url(#avatarClip)" preserveAspectRatio="xMidYMid slice"/>
+    <rect x="92" y="112" width="220" height="220" rx="42" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.14)"/>
+    <image href="${embeddedAvatar}" x="92" y="112" width="220" height="220" clip-path="url(#avatarClip)" preserveAspectRatio="xMidYMid slice"/>
 
-    <text x="322" y="124" fill="${theme.accent}" font-size="20" font-family="Segoe UI, Arial, sans-serif" letter-spacing="3">WELCOME TO ${escapeXml(serverName).toUpperCase()}</text>
-    <text x="322" y="196" fill="#FFFFFF" font-size="54" font-weight="700" font-family="Segoe UI, Arial, sans-serif">${escapeXml(username)}</text>
-    <text x="322" y="244" fill="#E6F1FF" font-size="28" font-family="Segoe UI, Arial, sans-serif">just entered the global creator lobby</text>
-    <text x="322" y="292" fill="rgba(255,255,255,0.82)" font-size="24" font-family="Segoe UI, Arial, sans-serif">${escapeXml(line)}</text>
+    <text x="358" y="118" fill="${theme.accent}" font-size="18" font-family="Segoe UI, Arial, sans-serif" letter-spacing="4">NEW MEMBER SIGNAL</text>
+    <text x="358" y="194" fill="#FFFFFF" font-size="60" font-weight="800" font-family="Segoe UI, Arial, sans-serif">${escapeXml(username)}</text>
+    <text x="358" y="246" fill="#DDEBFF" font-size="28" font-family="Segoe UI, Arial, sans-serif">just joined ${escapeXml(serverName)}</text>
+    <text x="358" y="300" fill="rgba(255,255,255,0.82)" font-size="24" font-family="Segoe UI, Arial, sans-serif">${escapeXml(line)}</text>
 
-    <rect x="322" y="318" width="270" height="20" rx="10" fill="rgba(255,255,255,0.1)"/>
-    <rect x="322" y="318" width="156" height="20" rx="10" fill="${theme.accent}"/>
+    <rect x="358" y="338" width="380" height="18" rx="9" fill="rgba(255,255,255,0.09)"/>
+    <rect x="358" y="338" width="240" height="18" rx="9" fill="url(#edge)"/>
 
-    <text x="952" y="164" fill="rgba(255,255,255,0.72)" font-size="20" font-family="Segoe UI, Arial, sans-serif" text-anchor="end">CURRENT MEMBER COUNT</text>
-    <text x="952" y="226" fill="#FFFFFF" font-size="62" font-weight="700" font-family="Segoe UI, Arial, sans-serif" text-anchor="end">${memberCount}</text>
-    <text x="952" y="278" fill="${theme.accent}" font-size="24" font-family="Segoe UI, Arial, sans-serif" text-anchor="end">${theme.name} welcome style</text>
+    <rect x="858" y="130" width="220" height="150" rx="24" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.10)"/>
+    <text x="968" y="178" fill="rgba(255,255,255,0.66)" font-size="18" font-family="Segoe UI, Arial, sans-serif" text-anchor="middle">MEMBER COUNT</text>
+    <text x="968" y="236" fill="#FFFFFF" font-size="64" font-weight="800" font-family="Segoe UI, Arial, sans-serif" text-anchor="middle">${memberCount}</text>
+
+    <rect x="92" y="372" width="986" height="46" rx="20" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.08)"/>
+    <text x="116" y="402" fill="${theme.accent}" font-size="18" font-family="Segoe UI, Arial, sans-serif">NEXT STEP</text>
+    <text x="250" y="402" fill="#F6FBFF" font-size="18" font-family="Segoe UI, Arial, sans-serif">Verify, pick your region, choose your roles, and start building with the community.</text>
   </svg>
   `;
 }
 
-function renderWelcomeCard(options) {
-  const svg = createWelcomeCardSvg(options);
+async function renderWelcomeCard(options) {
+  const svg = await createWelcomeCardSvg(options);
   const resvg = new Resvg(svg, {
     fitTo: {
       mode: "width",
-      value: 1080
+      value: 1200
     }
   });
 

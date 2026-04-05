@@ -914,7 +914,7 @@ function createFindTeamButton() {
   return new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId("open-find-team-post")
-      .setLabel("Publish Team Ad")
+      .setLabel("Quick Text Ad")
       .setStyle(ButtonStyle.Success)
   );
 }
@@ -966,7 +966,7 @@ function createFindTeamPanelEmbed() {
     .setTitle("Find Team Board")
     .setColor(0x00b894)
     .setDescription(
-      "Use the button below for a quick text-only team post, or use `/team-ad` if you want to upload real images with your recruitment ad."
+      "Use the button below for a quick text-only team post. If you want real uploaded images, use `/team-ad` in any channel."
     )
     .addFields(
       {
@@ -979,7 +979,7 @@ function createFindTeamPanelEmbed() {
       },
       {
         name: "Images",
-        value: "For real uploaded images, use `/team-ad`. The quick button flow is text-only."
+        value: "Discord modals cannot upload files. For real uploaded images, use `/team-ad`."
       }
     );
 }
@@ -2391,7 +2391,7 @@ client.on("interactionCreate", async (interaction) => {
           [interaction.user.id]: now
         });
 
-        await interaction.editReply("Your team ad has been published in #team-board.");
+        await interaction.editReply("Your team ad with uploaded images has been published in #team-board.");
         return;
       }
 
@@ -3080,7 +3080,7 @@ client.on("guildMemberAdd", async (member) => {
   try {
     const { welcomeStartChannel, welcomeFeedChannel, memberTrackerChannel } = await getOnboardingChannels(member.guild);
     const avatarUrl = member.displayAvatarURL({ extension: "png", size: 256 });
-    const cardBuffer = renderWelcomeCard({
+    const cardBuffer = await renderWelcomeCard({
       username: member.displayName,
       avatarUrl,
       memberCount: member.guild.memberCount,
@@ -3088,12 +3088,29 @@ client.on("guildMemberAdd", async (member) => {
     });
     const attachment = new AttachmentBuilder(cardBuffer, { name: `welcome-${member.id}.png` });
     const createdAtSeconds = Math.floor(member.user.createdTimestamp / 1000);
-    const welcomeTarget = welcomeFeedChannel && welcomeFeedChannel.type === ChannelType.GuildText
-      ? welcomeFeedChannel
-      : welcomeStartChannel;
+    let welcomePosted = false;
 
-    if (welcomeTarget && welcomeTarget.type === ChannelType.GuildText) {
-      await welcomeTarget.send({
+    if (welcomeFeedChannel && welcomeFeedChannel.type === ChannelType.GuildText) {
+      const sent = await welcomeFeedChannel.send({
+        content: `${member}`,
+        embeds: [
+          new EmbedBuilder()
+            .setTitle("A New Creator Has Arrived")
+            .setColor(0x72f2eb)
+            .setDescription(
+              `Welcome to **${setupSummary.serverName}**. Verify yourself, pick your country, and jump into the global creator scene.`
+            )
+            .setImage(`attachment://welcome-${member.id}.png`)
+        ],
+        files: [attachment],
+        allowedMentions: { users: [member.id], roles: [], parse: [] }
+      }).catch(() => null);
+
+      welcomePosted = Boolean(sent);
+    }
+
+    if (!welcomePosted && welcomeStartChannel && welcomeStartChannel.type === ChannelType.GuildText) {
+      await welcomeStartChannel.send({
         content: `${member}`,
         embeds: [
           new EmbedBuilder()
