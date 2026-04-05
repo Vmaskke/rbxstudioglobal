@@ -381,6 +381,7 @@ async function getOnboardingChannels(guild) {
   await guild.channels.fetch();
 
   return {
+    welcomeStartChannel: guild.channels.cache.find((channel) => channel.name === "welcome-start-here"),
     welcomeFeedChannel: guild.channels.cache.find((channel) => channel.name === "welcome-feed"),
     memberTrackerChannel: guild.channels.cache.find((channel) => channel.name === "member-tracker")
   };
@@ -863,6 +864,15 @@ function createRegionLeaderApplyButton() {
   );
 }
 
+function createFindTeamButton() {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId("open-find-team-post")
+      .setLabel("Publish Team Ad")
+      .setStyle(ButtonStyle.Success)
+  );
+}
+
 function createApplicationPanelEmbed(title, description) {
   return new EmbedBuilder()
     .setTitle(title)
@@ -903,6 +913,29 @@ function createRegionLeaderReviewButtons(applicantId) {
       .setLabel("Decline")
       .setStyle(ButtonStyle.Danger)
   );
+}
+
+function createFindTeamPanelEmbed() {
+  return new EmbedBuilder()
+    .setTitle("Find Team Board")
+    .setColor(0x00b894)
+    .setDescription(
+      "Use the button below to publish a proper team post. Random text messages are disabled here so the board stays clean."
+    )
+    .addFields(
+      {
+        name: "What you can post",
+        value: "Team recruitment, paid contracts, collaboration requests, and project openings."
+      },
+      {
+        name: "Cooldown",
+        value: "You can publish one new team ad every 4 hours."
+      },
+      {
+        name: "Images",
+        value: "You can add up to 2 image links in the form."
+      }
+    );
 }
 
 function clampDiscordText(value, maxLength) {
@@ -959,6 +992,59 @@ function createRegionLeaderApplicationModal() {
     "Ukraine / USA / Kazakhstan / Russia",
     "Tell us about yourself, your timezone, your language, and why you want to lead this region."
   );
+}
+
+function createFindTeamModal() {
+  return new ModalBuilder()
+    .setCustomId("submit-find-team-post")
+    .setTitle("Publish Team Ad")
+    .addComponents(
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId("ad_title")
+          .setLabel("Project or ad title")
+          .setStyle(TextInputStyle.Short)
+          .setPlaceholder("Need a Builder for a sci-fi lobby")
+          .setRequired(true)
+          .setMaxLength(80)
+      ),
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId("ad_description")
+          .setLabel("Description")
+          .setStyle(TextInputStyle.Paragraph)
+          .setPlaceholder("Explain the project, style, scope, and what stage it is in.")
+          .setRequired(true)
+          .setMaxLength(1000)
+      ),
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId("ad_reward")
+          .setLabel("Reward or payment")
+          .setStyle(TextInputStyle.Short)
+          .setPlaceholder("Revenue share / Paid / Negotiable")
+          .setRequired(true)
+          .setMaxLength(100)
+      ),
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId("ad_roles")
+          .setLabel("Who are you looking for")
+          .setStyle(TextInputStyle.Short)
+          .setPlaceholder("Builder, UI designer, Animator")
+          .setRequired(true)
+          .setMaxLength(140)
+      ),
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId("ad_images")
+          .setLabel("Image URLs (up to 2, optional)")
+          .setStyle(TextInputStyle.Paragraph)
+          .setPlaceholder("https://... one per line")
+          .setRequired(false)
+          .setMaxLength(600)
+      )
+    );
 }
 
 function isFounder(member) {
@@ -1152,6 +1238,52 @@ function createStudioIdea() {
   const twist = studioIdeaSeeds.twists[Math.floor(Math.random() * studioIdeaSeeds.twists.length)];
   const hook = studioIdeaSeeds.hooks[Math.floor(Math.random() * studioIdeaSeeds.hooks.length)];
   return `Make a ${genre} ${twist} ${hook}.`;
+}
+
+function parseImageUrls(input) {
+  if (!input) {
+    return [];
+  }
+
+  return input
+    .split(/\r?\n|,/)
+    .map((item) => item.trim())
+    .filter((item) => /^https?:\/\//i.test(item))
+    .slice(0, 2);
+}
+
+function buildFindTeamEmbed({ author, title, description, reward, rolesNeeded, imageUrls }) {
+  const embed = new EmbedBuilder()
+    .setTitle(title)
+    .setColor(0x00b894)
+    .setDescription(description)
+    .addFields(
+      {
+        name: "Looking For",
+        value: rolesNeeded
+      },
+      {
+        name: "Reward",
+        value: reward
+      }
+    )
+    .setFooter({
+      text: `Posted by ${author.tag}`
+    })
+    .setTimestamp();
+
+  if (imageUrls[0]) {
+    embed.setImage(imageUrls[0]);
+  }
+
+  if (imageUrls[1]) {
+    embed.addFields({
+      name: "Extra Image",
+      value: imageUrls[1]
+    });
+  }
+
+  return embed;
 }
 
 async function clearBotMessages(channel) {
@@ -1362,6 +1494,10 @@ async function syncServer(guild, mode, scope = "all") {
 
         if (channelDefinition.name === "how-to-get-help") {
           overwrites = buildReadOnlyOverwrites(guild, visibleVerifiedRoles, onboardingWriters);
+        }
+
+        if (channelDefinition.name === "find-team") {
+          overwrites = buildReadOnlyOverwrites(guild, visibleVerifiedRoles, founderAndCommunity);
         }
 
         await ensureChildChannel(guild, category, channelDefinition, overwrites);
@@ -1578,6 +1714,7 @@ async function syncServer(guild, mode, scope = "all") {
   const commandsChannel = guild.channels.cache.find(
     (channel) => channel.parentId === botCategory.id && channel.name === "bot-commands"
   );
+  const findTeamChannel = guild.channels.cache.find((channel) => channel.name === "find-team");
 
   if (syncAll && welcomeChannel) {
     await postWelcomeMessages(welcomeChannel);
@@ -1617,6 +1754,10 @@ async function syncServer(guild, mode, scope = "all") {
 
   if (syncAll && commandsChannel) {
     await postBotCommandsMessages(commandsChannel);
+  }
+
+  if (syncAll && findTeamChannel) {
+    await postFindTeamMessages(findTeamChannel);
   }
 
   return {
@@ -1828,6 +1969,15 @@ async function postRegionLeaderApplyMessages(channel) {
 async function postBotCommandsMessages(channel) {
   await syncManagedMessages(channel, "bot:commands", [
     { embeds: [createCommandsEmbed()] }
+  ]);
+}
+
+async function postFindTeamMessages(channel) {
+  await syncManagedMessages(channel, "global:find-team", [
+    {
+      embeds: [createFindTeamPanelEmbed()],
+      components: [createFindTeamButton()]
+    }
   ]);
 }
 
@@ -2257,6 +2407,11 @@ client.on("interactionCreate", async (interaction) => {
         return;
       }
 
+      if (interaction.customId === "open-find-team-post") {
+        await interaction.showModal(createFindTeamModal());
+        return;
+      }
+
       if (interaction.customId.startsWith("open-panel:")) {
         const panelId = interaction.customId.split(":")[1];
         const panel = getApplicationPanel(interaction.guild.id, panelId);
@@ -2604,6 +2759,67 @@ client.on("interactionCreate", async (interaction) => {
         return;
       }
 
+      if (interaction.customId === "submit-find-team-post") {
+        const title = interaction.fields.getTextInputValue("ad_title");
+        const description = interaction.fields.getTextInputValue("ad_description");
+        const reward = interaction.fields.getTextInputValue("ad_reward");
+        const rolesNeeded = interaction.fields.getTextInputValue("ad_roles");
+        const imageUrls = parseImageUrls(interaction.fields.getTextInputValue("ad_images"));
+        const { meta } = getGuildMeta(interaction.guild.id);
+        const cooldowns = meta.findTeamCooldowns ?? {};
+        const cooldownMs = 4 * 60 * 60 * 1000;
+        const lastPostedAt = cooldowns[interaction.user.id] ?? 0;
+        const now = Date.now();
+        const remainingMs = lastPostedAt + cooldownMs - now;
+
+        if (remainingMs > 0) {
+          const remainingHours = Math.ceil(remainingMs / (60 * 60 * 1000));
+          await interaction.reply({
+            content: `You can publish another team ad in about ${remainingHours} hour(s).`,
+            ephemeral: true
+          });
+          return;
+        }
+
+        const targetChannel = interaction.guild.channels.cache.find(
+          (channel) => channel.name === "find-team" && channel.type === ChannelType.GuildText
+        );
+
+        if (!targetChannel) {
+          await interaction.reply({
+            content: "The find-team channel was not found. Ask staff to run /setup again.",
+            ephemeral: true
+          });
+          return;
+        }
+
+        await targetChannel.send({
+          content: `${interaction.user} is looking for teammates.`,
+          embeds: [
+            buildFindTeamEmbed({
+              author: interaction.user,
+              title,
+              description,
+              reward,
+              rolesNeeded,
+              imageUrls
+            })
+          ],
+          allowedMentions: { users: [interaction.user.id], roles: [], parse: [] }
+        });
+
+        setGuildMetaValue(interaction.guild.id, "findTeamCooldowns", {
+          ...cooldowns,
+          [interaction.user.id]: now
+        });
+
+        await interaction.reply({
+          content: "Your team ad has been published in #find-team.",
+          ephemeral: true
+        });
+        return;
+      }
+
       if (interaction.customId.startsWith("submit-panel:")) {
         const panelId = interaction.customId.split(":")[1];
         const panel = getApplicationPanel(interaction.guild.id, panelId);
@@ -2733,7 +2949,7 @@ client.on("voiceStateUpdate", async (oldState, newState) => {
 
 client.on("guildMemberAdd", async (member) => {
   try {
-    const { welcomeFeedChannel, memberTrackerChannel } = await getOnboardingChannels(member.guild);
+    const { welcomeStartChannel, welcomeFeedChannel, memberTrackerChannel } = await getOnboardingChannels(member.guild);
     const avatarUrl = member.displayAvatarURL({ extension: "png", size: 256 });
     const cardBuffer = renderWelcomeCard({
       username: member.displayName,
@@ -2743,11 +2959,24 @@ client.on("guildMemberAdd", async (member) => {
     });
     const attachment = new AttachmentBuilder(cardBuffer, { name: `welcome-${member.id}.png` });
     const createdAtSeconds = Math.floor(member.user.createdTimestamp / 1000);
+    const welcomeTarget = welcomeFeedChannel && welcomeFeedChannel.type === ChannelType.GuildText
+      ? welcomeFeedChannel
+      : welcomeStartChannel;
 
-    if (welcomeFeedChannel && welcomeFeedChannel.type === ChannelType.GuildText) {
-      await welcomeFeedChannel.send({
-        content: `${member} welcome to **${setupSummary.serverName}**. Verify yourself, pick your country, and jump into the global creator scene.`,
-        files: [attachment]
+    if (welcomeTarget && welcomeTarget.type === ChannelType.GuildText) {
+      await welcomeTarget.send({
+        content: `${member}`,
+        embeds: [
+          new EmbedBuilder()
+            .setTitle("A New Creator Has Arrived")
+            .setColor(0x72f2eb)
+            .setDescription(
+              `Welcome to **${setupSummary.serverName}**. Verify yourself, pick your country, and jump into the global creator scene.`
+            )
+            .setImage(`attachment://welcome-${member.id}.png`)
+        ],
+        files: [attachment],
+        allowedMentions: { users: [member.id], roles: [], parse: [] }
       }).catch(() => null);
     }
 
