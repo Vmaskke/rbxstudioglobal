@@ -9,11 +9,14 @@ const {
   Client,
   EmbedBuilder,
   GatewayIntentBits,
+  ModalBuilder,
   PermissionFlagsBits,
   REST,
   Routes,
   SlashCommandBuilder,
-  StringSelectMenuBuilder
+  StringSelectMenuBuilder,
+  TextInputBuilder,
+  TextInputStyle
 } = require("discord.js");
 
 const {
@@ -534,6 +537,25 @@ function createYouTuberInfoEmbed() {
     );
 }
 
+function createYouTuberApplyEmbed() {
+  return new EmbedBuilder()
+    .setTitle("Apply For The YouTuber Role")
+    .setColor(0xff4757)
+    .setDescription(
+      "Press the button below to open the application form. Fill in your social link and tell us why you want the media role."
+    )
+    .addFields(
+      {
+        name: "What to prepare",
+        value: "Your YouTube or social link, your content language, and a short introduction about yourself."
+      },
+      {
+        name: "What happens next",
+        value: "Your application is posted here красиво as an embed so staff can review it."
+      }
+    );
+}
+
 function createRegionLeaderInfoEmbed() {
   return new EmbedBuilder()
     .setTitle("Region Leader Program")
@@ -608,6 +630,41 @@ function createVerificationButtons() {
       .setLabel("Server Info")
       .setStyle(ButtonStyle.Secondary)
   );
+}
+
+function createYouTuberApplyButton() {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId("open-youtuber-application")
+      .setLabel("Apply For YouTuber")
+      .setStyle(ButtonStyle.Danger)
+  );
+}
+
+function createYouTuberApplicationModal() {
+  const socialInput = new TextInputBuilder()
+    .setCustomId("social_link")
+    .setLabel("Your social or YouTube link")
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder("https://youtube.com/@yourchannel")
+    .setRequired(true)
+    .setMaxLength(200);
+
+  const aboutInput = new TextInputBuilder()
+    .setCustomId("about_creator")
+    .setLabel("Tell us about yourself")
+    .setStyle(TextInputStyle.Paragraph)
+    .setPlaceholder("Who are you, what do you create, and why do you want the media role?")
+    .setRequired(true)
+    .setMaxLength(1000);
+
+  return new ModalBuilder()
+    .setCustomId("submit-youtuber-application")
+    .setTitle("YouTuber Application")
+    .addComponents(
+      new ActionRowBuilder().addComponents(socialInput),
+      new ActionRowBuilder().addComponents(aboutInput)
+    );
 }
 
 async function clearBotMessages(channel) {
@@ -1187,8 +1244,8 @@ async function postYouTuberInfoMessages(channel) {
 async function postYouTuberApplyMessages(channel) {
   await syncManagedMessages(channel, "media:youtuber-apply", [
     {
-      content:
-        "Apply here for the YouTuber role. Post your channel link, your audience language, your country, and one recent Roblox-related upload."
+      embeds: [createYouTuberApplyEmbed()],
+      components: [createYouTuberApplyButton()]
     }
   ]);
 }
@@ -1457,6 +1514,11 @@ client.on("interactionCreate", async (interaction) => {
         return;
       }
 
+      if (interaction.customId === "open-youtuber-application") {
+        await interaction.showModal(createYouTuberApplicationModal());
+        return;
+      }
+
       if (interaction.customId === "show-server-info") {
         await interaction.reply({
           embeds: [buildAuditSummary(interaction.guild)],
@@ -1503,6 +1565,58 @@ client.on("interactionCreate", async (interaction) => {
 
         await interaction.reply({
           content: "Your country role was cleared.",
+          ephemeral: true
+        });
+      }
+    }
+
+    if (interaction.isModalSubmit()) {
+      if (!interaction.inCachedGuild()) {
+        await interaction.reply({ content: "This form works only inside a server.", ephemeral: true });
+        return;
+      }
+
+      if (interaction.customId === "submit-youtuber-application") {
+        const socialLink = interaction.fields.getTextInputValue("social_link");
+        const aboutCreator = interaction.fields.getTextInputValue("about_creator");
+        const applicationChannel = interaction.guild.channels.cache.find(
+          (channel) => channel.name === "apply-for-youtuber" && channel.type === ChannelType.GuildText
+        );
+
+        if (!applicationChannel) {
+          await interaction.reply({
+            content: "The YouTuber application channel was not found. Ask staff to run /setup again.",
+            ephemeral: true
+          });
+          return;
+        }
+
+        const applicationEmbed = new EmbedBuilder()
+          .setTitle("New YouTuber Application")
+          .setColor(0xff4757)
+          .setDescription(`${interaction.user} submitted a media application.`)
+          .addFields(
+            {
+              name: "Social Link",
+              value: socialLink
+            },
+            {
+              name: "About The Creator",
+              value: aboutCreator
+            }
+          )
+          .setFooter({
+            text: `Applicant ID: ${interaction.user.id}`
+          })
+          .setTimestamp();
+
+        await applicationChannel.send({
+          content: `${interaction.user} submitted a YouTuber application.`,
+          embeds: [applicationEmbed]
+        });
+
+        await interaction.reply({
+          content: "Your YouTuber application was submitted successfully.",
           ephemeral: true
         });
       }
