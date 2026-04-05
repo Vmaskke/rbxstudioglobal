@@ -640,6 +640,7 @@ async function syncManagedMessages(channel, scope, payloads) {
   }
 
   const { messages: storedMessages } = getManagedMessages(channel.guild.id, scope);
+  const { meta } = getGuildMeta(channel.guild.id);
   const nextState = [];
 
   for (let index = 0; index < payloads.length; index += 1) {
@@ -677,6 +678,23 @@ async function syncManagedMessages(channel, scope, payloads) {
   }
 
   setManagedMessages(channel.guild.id, scope, nextState);
+
+  const cleanupKey = `cleanup:${scope}`;
+  if (!meta[cleanupKey]) {
+    const recentMessages = await channel.messages.fetch({ limit: 100 }).catch(() => null);
+    if (recentMessages) {
+      const keepIds = new Set(nextState.map((entry) => entry.messageId));
+      const duplicateMessages = recentMessages.filter(
+        (message) => message.author.id === client.user.id && !keepIds.has(message.id)
+      );
+
+      for (const message of duplicateMessages.values()) {
+        await message.delete().catch(() => null);
+      }
+    }
+
+    setGuildMetaValue(channel.guild.id, cleanupKey, true);
+  }
 }
 
 async function syncServer(guild, mode) {
