@@ -2,11 +2,13 @@ require("dotenv").config();
 
 const {
   ActionRowBuilder,
+  ApplicationCommandType,
   ButtonBuilder,
   ButtonStyle,
   AttachmentBuilder,
   ChannelType,
   Client,
+  ContextMenuCommandBuilder,
   EmbedBuilder,
   GatewayIntentBits,
   ModalBuilder,
@@ -69,6 +71,51 @@ const client = new Client({
 });
 
 const activeVoiceMembers = new Map();
+const countryLanguageMap = {
+  ru: "ru",
+  ua: "uk",
+  us: "en",
+  tr: "tr",
+  br: "pt",
+  es: "es",
+  fr: "fr",
+  de: "de",
+  pl: "pl",
+  kz: "kk"
+};
+
+const translationChoices = [
+  { name: "Auto by your country role", value: "auto" },
+  { name: "English", value: "en" },
+  { name: "Russian", value: "ru" },
+  { name: "Ukrainian", value: "uk" },
+  { name: "Turkish", value: "tr" },
+  { name: "Portuguese", value: "pt" },
+  { name: "Spanish", value: "es" },
+  { name: "French", value: "fr" },
+  { name: "German", value: "de" },
+  { name: "Polish", value: "pl" },
+  { name: "Kazakh", value: "kk" }
+];
+
+const eightBallAnswers = [
+  "Yes, ship it.",
+  "Looks promising.",
+  "Give it one more polish pass.",
+  "Not today.",
+  "Ask again after coffee.",
+  "High chance of success.",
+  "The bugs say no.",
+  "Builder approved.",
+  "Scripter approved.",
+  "It needs more VFX."
+];
+
+const studioIdeaSeeds = {
+  genres: ["obby", "simulator", "tycoon", "story game", "arena battler", "horror co-op"],
+  twists: ["with regional events", "where the UI is diegetic", "built around weather", "with community-made challenges", "with speedrun tech", "with hidden lore"],
+  hooks: ["for small teams", "for solo devs", "for YouTube moments", "for social clips", "for long-term progression", "for daily co-op sessions"]
+};
 
 const commands = [
   new SlashCommandBuilder()
@@ -115,6 +162,51 @@ const commands = [
   new SlashCommandBuilder()
     .setName("leaderboard")
     .setDescription("Show the server XP leaderboard."),
+  new SlashCommandBuilder()
+    .setName("tr")
+    .setDescription("Translate text or a Discord message link into your server language.")
+    .addStringOption((option) =>
+      option
+        .setName("text")
+        .setDescription("Text to translate")
+        .setRequired(false)
+    )
+    .addStringOption((option) =>
+      option
+        .setName("message_link")
+        .setDescription("Link to a Discord message to translate")
+        .setRequired(false)
+    )
+    .addStringOption((option) =>
+      option
+        .setName("language")
+        .setDescription("Target language")
+        .setRequired(false)
+        .addChoices(...translationChoices)
+    ),
+  new SlashCommandBuilder()
+    .setName("8ball")
+    .setDescription("Ask the bot for a chaotic studio answer.")
+    .addStringOption((option) =>
+      option
+        .setName("question")
+        .setDescription("Your question")
+        .setRequired(true)
+    ),
+  new SlashCommandBuilder()
+    .setName("roll")
+    .setDescription("Roll a number.")
+    .addIntegerOption((option) =>
+      option
+        .setName("sides")
+        .setDescription("How many sides the dice should have")
+        .setRequired(false)
+        .setMinValue(2)
+        .setMaxValue(1000)
+    ),
+  new SlashCommandBuilder()
+    .setName("studio-idea")
+    .setDescription("Get a quick Roblox game idea for fun."),
   new SlashCommandBuilder()
     .setName("create-application-panel")
     .setDescription("Founder-only: create a two-field application panel in any channel.")
@@ -165,7 +257,10 @@ const commands = [
         .setName("field_two_label")
         .setDescription("Second field label")
         .setRequired(true)
-    )
+    ),
+  new ContextMenuCommandBuilder()
+    .setName("Translate Message")
+    .setType(ApplicationCommandType.Message)
 ].map((command) => command.toJSON());
 
 function chunk(items, size) {
@@ -576,10 +671,12 @@ function createCommandsEmbed() {
     .setColor(0x00cec9)
     .setDescription("Main slash commands available in this server.")
     .addFields(
-      { name: "/setup", value: "Create or sync the full server structure." },
+      { name: "/setup", value: "Create or sync the full server structure. Use scope:media for Media-only updates." },
       { name: "/audit", value: "Inspect channels, categories, and roles." },
       { name: "/rank", value: "Generate a rank card image for yourself or another member." },
       { name: "/leaderboard", value: "Show the top XP users." },
+      { name: "/tr", value: "Translate text or a message link into your country language." },
+      { name: "/8ball, /roll, /studio-idea", value: "Small fun commands for the community." },
       { name: "/refresh-commands", value: "Force-refresh slash commands after updates." }
     );
 }
@@ -789,6 +886,140 @@ function canReviewMedia(member) {
   ].filter(Boolean);
 
   return member.roles.cache.some((role) => allowedRoleNames.includes(role.name));
+}
+
+function detectPreferredLanguage(member) {
+  for (const country of countries) {
+    const expectedRoleName = `${country.emoji} ${country.name}`;
+    if (member.roles.cache.some((role) => role.name === expectedRoleName)) {
+      return countryLanguageMap[country.key] ?? "en";
+    }
+  }
+
+  return "en";
+}
+
+function languageLabel(code) {
+  return translationChoices.find((choice) => choice.value === code)?.name ?? code.toUpperCase();
+}
+
+function parseDiscordMessageLink(link) {
+  const match = link.match(/channels\/(\d+)\/(\d+)\/(\d+)/);
+  if (!match) {
+    return null;
+  }
+
+  return {
+    guildId: match[1],
+    channelId: match[2],
+    messageId: match[3]
+  };
+}
+
+async function resolveTranslationSource(interaction, textInput, messageLink) {
+  if (textInput) {
+    return {
+      text: textInput,
+      sourceLabel: "Manual text"
+    };
+  }
+
+  if (!messageLink) {
+    return null;
+  }
+
+  const parsed = parseDiscordMessageLink(messageLink);
+  if (!parsed || parsed.guildId !== interaction.guild.id) {
+    throw new Error("invalid-message-link");
+  }
+
+  const channel = await interaction.guild.channels.fetch(parsed.channelId).catch(() => null);
+  if (!channel || channel.type !== ChannelType.GuildText) {
+    throw new Error("message-channel-missing");
+  }
+
+  const message = await channel.messages.fetch(parsed.messageId).catch(() => null);
+  if (!message) {
+    throw new Error("message-missing");
+  }
+
+  const sourceText = message.content || message.embeds[0]?.description || message.embeds[0]?.title || null;
+  if (!sourceText) {
+    throw new Error("message-empty");
+  }
+
+  return {
+    text: sourceText,
+    sourceLabel: `Message by ${message.author.username}`,
+    sourceUrl: message.url
+  };
+}
+
+async function translateText(text, targetLanguage) {
+  const url =
+    `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLanguage}&dt=t&q=${encodeURIComponent(text)}`;
+  const response = await fetch(url, {
+    headers: {
+      "User-Agent": "Mozilla/5.0"
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`translate-failed:${response.status}`);
+  }
+
+  const data = await response.json();
+  const translated = Array.isArray(data?.[0])
+    ? data[0].map((chunk) => chunk?.[0] ?? "").join("").trim()
+    : "";
+
+  if (!translated) {
+    throw new Error("translate-empty");
+  }
+
+  return {
+    translated,
+    detectedLanguage: data?.[2] ?? "auto"
+  };
+}
+
+function buildTranslationEmbed(source, translation, targetLanguage) {
+  const embed = new EmbedBuilder()
+    .setTitle("Translation")
+    .setColor(0x74b9ff)
+    .addFields(
+      {
+        name: "From",
+        value: source.text.slice(0, 1024)
+      },
+      {
+        name: `To ${languageLabel(targetLanguage)}`,
+        value: translation.translated.slice(0, 1024)
+      }
+    )
+    .setFooter({
+      text: `Detected source language: ${translation.detectedLanguage}`
+    });
+
+  if (source.sourceLabel) {
+    embed.setDescription(source.sourceLabel);
+  }
+
+  if (source.sourceUrl) {
+    embed.addFields({
+      name: "Jump",
+      value: source.sourceUrl
+    });
+  }
+
+  return embed;
+}
+
+function createStudioIdea() {
+  const genre = studioIdeaSeeds.genres[Math.floor(Math.random() * studioIdeaSeeds.genres.length)];
+  const twist = studioIdeaSeeds.twists[Math.floor(Math.random() * studioIdeaSeeds.twists.length)];
+  const hook = studioIdeaSeeds.hooks[Math.floor(Math.random() * studioIdeaSeeds.hooks.length)];
+  return `Make a ${genre} ${twist} ${hook}.`;
 }
 
 async function clearBotMessages(channel) {
@@ -1155,12 +1386,12 @@ async function syncServer(guild, mode, scope = "all") {
   const orderedRoleIds = [
     ensuredFixedRoles.founder.id,
     ensuredFixedRoles.admin.id,
-    ensuredFixedRoles.moderator.id,
     ensuredFixedRoles.community.id,
+    ensuredFixedRoles.moderator.id,
     ensuredFixedRoles.country_lead.id,
-    ensuredFixedRoles.verified.id,
-    ensuredFixedRoles.media.id,
     ensuredFixedRoles.media_reviewer.id,
+    ensuredFixedRoles.media.id,
+    ensuredFixedRoles.verified.id,
     ...countries.map((country) => countryRoleMap.get(country.key)?.id).filter(Boolean),
     ...countries.map((country) => regionLeaderRoleMap.get(country.key)?.id).filter(Boolean),
     ...skillRoles.map((skill) => skillRoleMap.get(skill.key)?.id).filter(Boolean)
@@ -1662,6 +1893,82 @@ client.on("interactionCreate", async (interaction) => {
         return;
       }
 
+      if (interaction.commandName === "tr") {
+        await interaction.deferReply({ ephemeral: true });
+        const member = await interaction.guild.members.fetch(interaction.user.id);
+        const textInput = interaction.options.getString("text");
+        const messageLink = interaction.options.getString("message_link");
+        const selectedLanguage = interaction.options.getString("language") ?? "auto";
+        const targetLanguage = selectedLanguage === "auto" ? detectPreferredLanguage(member) : selectedLanguage;
+
+        let source = null;
+        try {
+          source = await resolveTranslationSource(interaction, textInput, messageLink);
+        } catch (error) {
+          const messages = {
+            "invalid-message-link": "Use a valid Discord message link from this server.",
+            "message-channel-missing": "That message channel was not found.",
+            "message-missing": "That message could not be fetched.",
+            "message-empty": "That message has no text to translate."
+          };
+
+          await interaction.editReply(messages[error.message] ?? "Could not read that message.");
+          return;
+        }
+
+        if (!source) {
+          await interaction.editReply("Add text or a message link for translation.");
+          return;
+        }
+
+        try {
+          const translation = await translateText(source.text, targetLanguage);
+          await interaction.editReply({
+            embeds: [buildTranslationEmbed(source, translation, targetLanguage)]
+          });
+        } catch (error) {
+          console.error("Translation failed:", error);
+          await interaction.editReply("Translation failed right now. Try again in a moment.");
+        }
+        return;
+      }
+
+      if (interaction.commandName === "8ball") {
+        const question = interaction.options.getString("question", true);
+        const answer = eightBallAnswers[Math.floor(Math.random() * eightBallAnswers.length)];
+        await interaction.reply({
+          embeds: [
+            new EmbedBuilder()
+              .setTitle("Studio 8-Ball")
+              .setColor(0xa29bfe)
+              .addFields(
+                { name: "Question", value: question.slice(0, 1024) },
+                { name: "Answer", value: answer }
+              )
+          ]
+        });
+        return;
+      }
+
+      if (interaction.commandName === "roll") {
+        const sides = interaction.options.getInteger("sides") ?? 100;
+        const rolled = Math.floor(Math.random() * sides) + 1;
+        await interaction.reply(`You rolled **${rolled}** on a **d${sides}**.`);
+        return;
+      }
+
+      if (interaction.commandName === "studio-idea") {
+        await interaction.reply({
+          embeds: [
+            new EmbedBuilder()
+              .setTitle("Studio Idea Drop")
+              .setColor(0xfd79a8)
+              .setDescription(createStudioIdea())
+          ]
+        });
+        return;
+      }
+
       if (interaction.commandName === "create-application-panel") {
         const member = await interaction.guild.members.fetch(interaction.user.id);
         if (!isFounder(member)) {
@@ -1712,6 +2019,49 @@ client.on("interactionCreate", async (interaction) => {
           content: `Application panel created in #${targetChannel.name}.`,
           ephemeral: true
         });
+      }
+    }
+
+    if (interaction.isMessageContextMenuCommand()) {
+      if (!interaction.inCachedGuild()) {
+        await interaction.reply({ content: "This command works only inside a server.", ephemeral: true });
+        return;
+      }
+
+      if (interaction.commandName === "Translate Message") {
+        await interaction.deferReply({ ephemeral: true });
+        const member = await interaction.guild.members.fetch(interaction.user.id);
+        const targetLanguage = detectPreferredLanguage(member);
+        const sourceText =
+          interaction.targetMessage.content ||
+          interaction.targetMessage.embeds[0]?.description ||
+          interaction.targetMessage.embeds[0]?.title;
+
+        if (!sourceText) {
+          await interaction.editReply("This message has no text to translate.");
+          return;
+        }
+
+        try {
+          const translation = await translateText(sourceText, targetLanguage);
+          await interaction.editReply({
+            embeds: [
+              buildTranslationEmbed(
+                {
+                  text: sourceText,
+                  sourceLabel: `Message by ${interaction.targetMessage.author.username}`,
+                  sourceUrl: interaction.targetMessage.url
+                },
+                translation,
+                targetLanguage
+              )
+            ]
+          });
+        } catch (error) {
+          console.error("Context translation failed:", error);
+          await interaction.editReply("Translation failed right now. Try again in a moment.");
+        }
+        return;
       }
     }
 
