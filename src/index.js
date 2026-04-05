@@ -629,7 +629,7 @@ function buildPrivateCountryOverwrites(guild, verifiedRoleId, countryRoleId, adm
 }
 
 function buildRegionalNewsOverwrites(guild, verifiedRoleId, countryRoleId, leaderRoleId, adminRoleIds) {
-  const writerRoleIds = [countryRoleId, leaderRoleId, ...adminRoleIds].filter(Boolean);
+  const writerRoleIds = [leaderRoleId, ...adminRoleIds].filter(Boolean);
   return buildReadOnlyOverwrites(guild, [verifiedRoleId, ...adminRoleIds], writerRoleIds);
 }
 
