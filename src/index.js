@@ -835,26 +835,34 @@ function createMediaReviewButtons(applicantId) {
   );
 }
 
+function clampDiscordText(value, maxLength) {
+  if (!value) {
+    return "";
+  }
+
+  return value.length <= maxLength ? value : `${value.slice(0, maxLength - 1).trimEnd()}…`;
+}
+
 function createApplicationModal(modalId, title, fieldOneLabel, fieldTwoLabel, fieldOnePlaceholder, fieldTwoPlaceholder) {
   const socialInput = new TextInputBuilder()
     .setCustomId("field_one")
-    .setLabel(fieldOneLabel)
+    .setLabel(clampDiscordText(fieldOneLabel, 45))
     .setStyle(TextInputStyle.Short)
-    .setPlaceholder(fieldOnePlaceholder)
+    .setPlaceholder(clampDiscordText(fieldOnePlaceholder, 100))
     .setRequired(true)
     .setMaxLength(200);
 
   const aboutInput = new TextInputBuilder()
     .setCustomId("field_two")
-    .setLabel(fieldTwoLabel)
+    .setLabel(clampDiscordText(fieldTwoLabel, 45))
     .setStyle(TextInputStyle.Paragraph)
-    .setPlaceholder(fieldTwoPlaceholder)
+    .setPlaceholder(clampDiscordText(fieldTwoPlaceholder, 100))
     .setRequired(true)
     .setMaxLength(1000);
 
   return new ModalBuilder()
     .setCustomId(modalId)
-    .setTitle(title)
+    .setTitle(clampDiscordText(title, 45))
     .addComponents(
       new ActionRowBuilder().addComponents(socialInput),
       new ActionRowBuilder().addComponents(aboutInput)
