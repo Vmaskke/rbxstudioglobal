@@ -143,6 +143,16 @@ const commands = [
           { name: "all", value: "all" },
           { name: "media", value: "media" }
         )
+    )
+    .addStringOption((option) =>
+      option
+        .setName("visibility")
+        .setDescription("Keep the server hidden while you review everything")
+        .setRequired(false)
+        .addChoices(
+          { name: "private_preview", value: "private_preview" },
+          { name: "live", value: "live" }
+        )
     ),
   new SlashCommandBuilder()
     .setName("post-panels")
@@ -632,6 +642,25 @@ function buildPrivateCountryOverwrites(guild, verifiedRoleId, countryRoleId, adm
 function buildRegionalNewsOverwrites(guild, verifiedRoleId, countryRoleId, leaderRoleId, adminRoleIds) {
   const writerRoleIds = [leaderRoleId, ...adminRoleIds].filter(Boolean);
   return buildReadOnlyOverwrites(guild, [verifiedRoleId, ...adminRoleIds], writerRoleIds);
+}
+
+function buildFounderPreviewOverwrites(guild, founderMemberId) {
+  return [
+    {
+      id: guild.roles.everyone.id,
+      deny: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.Connect]
+    },
+    {
+      id: founderMemberId,
+      allow: [
+        PermissionFlagsBits.ViewChannel,
+        PermissionFlagsBits.SendMessages,
+        PermissionFlagsBits.Connect,
+        PermissionFlagsBits.ManageMessages,
+        PermissionFlagsBits.ManageChannels
+      ]
+    }
+  ];
 }
 
 function createOverviewEmbed() {
@@ -1515,7 +1544,7 @@ async function syncManagedMessages(channel, scope, payloads) {
   setGuildMetaValue(channel.guild.id, `cleanup:${scope}`, true);
 }
 
-async function syncServer(guild, mode, scope = "all") {
+async function syncServer(guild, mode, scope = "all", visibility = "private_preview", founderMemberId = null) {
   await guild.roles.fetch();
   await guild.channels.fetch();
 
@@ -1595,25 +1624,32 @@ async function syncServer(guild, mode, scope = "all") {
   const baseOverwrites = buildBaseOverwrites(guild, adminRoleIds);
   const verifiedOverwrites = buildVerifiedOverwrites(guild, verifiedRoleId, adminRoleIds);
   const syncAll = scope === "all";
-  const syncMediaOnly = scope === "media";
+  const previewOnly = visibility === "private_preview" && founderMemberId;
+  const founderPreviewOverwrites = previewOnly
+    ? buildFounderPreviewOverwrites(guild, founderMemberId)
+    : null;
 
   let onboardingCategory = null;
   if (syncAll) {
-    onboardingCategory = await ensureCategory(guild, "🚀 Start Here", baseOverwrites);
+    onboardingCategory = await ensureCategory(
+      guild,
+      "🚀 Start Here",
+      founderPreviewOverwrites ?? baseOverwrites
+    );
     orderedCategories.push(onboardingCategory);
 
     for (const channelDefinition of announcementChannels) {
-      let overwrites = baseOverwrites;
+      let overwrites = founderPreviewOverwrites ?? baseOverwrites;
 
-      if (["welcome-start-here", "welcome-feed", "member-tracker", "rules", "language-guide", "navigation", "choose-your-roles"].includes(channelDefinition.name)) {
+      if (!previewOnly && ["welcome-start-here", "welcome-feed", "member-tracker", "rules", "language-guide", "navigation", "choose-your-roles"].includes(channelDefinition.name)) {
         overwrites = buildPublicReadOnlyOverwrites(guild, onboardingWriters);
       }
 
-      if (["rules", "language-guide", "navigation", "choose-your-roles"].includes(channelDefinition.name)) {
+      if (!previewOnly && ["rules", "language-guide", "navigation", "choose-your-roles"].includes(channelDefinition.name)) {
         overwrites = buildReadOnlyOverwrites(guild, visibleVerifiedRoles, onboardingWriters);
       }
 
-      if (channelDefinition.name === "announcements") {
+      if (!previewOnly && channelDefinition.name === "announcements") {
         overwrites = buildReadOnlyOverwrites(guild, visibleVerifiedRoles, onboardingWriters);
       }
 
@@ -1622,25 +1658,29 @@ async function syncServer(guild, mode, scope = "all") {
     await positionChildren(guild, onboardingCategory, announcementChannels);
 
     for (const categoryDefinition of publicCategories) {
-      const category = await ensureCategory(guild, categoryDefinition.name, verifiedOverwrites);
+      const category = await ensureCategory(
+        guild,
+        categoryDefinition.name,
+        founderPreviewOverwrites ?? verifiedOverwrites
+      );
       orderedCategories.push(category);
 
       for (const channelDefinition of categoryDefinition.channels) {
-        let overwrites = verifiedOverwrites;
+        let overwrites = founderPreviewOverwrites ?? verifiedOverwrites;
 
-        if (channelDefinition.name === "resources") {
+        if (!previewOnly && channelDefinition.name === "resources") {
           overwrites = buildReadOnlyOverwrites(guild, visibleVerifiedRoles, onboardingWriters);
         }
 
-        if (channelDefinition.name === "how-to-get-help") {
+        if (!previewOnly && channelDefinition.name === "how-to-get-help") {
           overwrites = buildReadOnlyOverwrites(guild, visibleVerifiedRoles, onboardingWriters);
         }
 
-        if (channelDefinition.name === "find-team") {
+        if (!previewOnly && channelDefinition.name === "find-team") {
           overwrites = buildHiddenReadOnlyOverwrites(guild, visibleVerifiedRoles, founderAndCommunity);
         }
 
-        if (channelDefinition.name === "team-board") {
+        if (!previewOnly && channelDefinition.name === "team-board") {
           overwrites = buildHiddenReadOnlyOverwrites(guild, visibleVerifiedRoles, founderAndCommunity);
         }
 
@@ -1651,17 +1691,21 @@ async function syncServer(guild, mode, scope = "all") {
     }
   }
 
-  const media = await ensureCategory(guild, mediaCategory.name, verifiedOverwrites);
+  const media = await ensureCategory(
+    guild,
+    mediaCategory.name,
+    founderPreviewOverwrites ?? verifiedOverwrites
+  );
   orderedCategories.push(media);
   for (const channelDefinition of mediaCategory.channels) {
-    let overwrites = verifiedOverwrites;
-    if (channelDefinition.name === "media-info") {
+    let overwrites = founderPreviewOverwrites ?? verifiedOverwrites;
+    if (!previewOnly && channelDefinition.name === "media-info") {
       overwrites = buildReadOnlyOverwrites(guild, visibleVerifiedRoles, founderAndCommunity);
     }
-    if (channelDefinition.name === "apply-for-media") {
+    if (!previewOnly && channelDefinition.name === "apply-for-media") {
       overwrites = buildHiddenReadOnlyOverwrites(guild, [verifiedRoleId, ...adminRoleIds], founderAndCommunity);
     }
-    if (channelDefinition.name === "media-drops") {
+    if (!previewOnly && channelDefinition.name === "media-drops") {
       overwrites = buildReadOnlyOverwrites(
         guild,
         [verifiedRoleId, ...adminRoleIds],
@@ -1672,7 +1716,7 @@ async function syncServer(guild, mode, scope = "all") {
   }
   await positionChildren(guild, media, mediaCategory.channels);
 
-  const reviewOverwrites = [
+  const reviewOverwrites = founderPreviewOverwrites ?? [
     {
       id: guild.roles.everyone.id,
       deny: [PermissionFlagsBits.ViewChannel]
@@ -1705,16 +1749,20 @@ async function syncServer(guild, mode, scope = "all") {
 
   let applications = null;
   if (syncAll) {
-    applications = await ensureCategory(guild, applicationCategory.name, verifiedOverwrites);
+    applications = await ensureCategory(
+      guild,
+      applicationCategory.name,
+      founderPreviewOverwrites ?? verifiedOverwrites
+    );
     orderedCategories.push(applications);
     for (const channelDefinition of applicationCategory.channels) {
-      let overwrites = verifiedOverwrites;
-      if (channelDefinition.name === "region-leader-info") {
+      let overwrites = founderPreviewOverwrites ?? verifiedOverwrites;
+      if (!previewOnly && channelDefinition.name === "region-leader-info") {
         overwrites = buildReadOnlyOverwrites(guild, visibleVerifiedRoles, founderAndCommunity);
       }
-        if (channelDefinition.name === "apply-for-region-leader") {
-          overwrites = buildHiddenReadOnlyOverwrites(guild, [verifiedRoleId, ...adminRoleIds], founderAndCommunity);
-        }
+      if (!previewOnly && channelDefinition.name === "apply-for-region-leader") {
+        overwrites = buildHiddenReadOnlyOverwrites(guild, [verifiedRoleId, ...adminRoleIds], founderAndCommunity);
+      }
       await ensureChildChannel(guild, applications, channelDefinition, overwrites);
     }
     await positionChildren(guild, applications, applicationCategory.channels);
@@ -1724,7 +1772,7 @@ async function syncServer(guild, mode, scope = "all") {
     for (const country of countries) {
       const countryRole = countryRoleMap.get(country.key);
       const leaderRole = regionLeaderRoleMap.get(country.key);
-      const overwrites = buildPrivateCountryOverwrites(
+      const overwrites = founderPreviewOverwrites ?? buildPrivateCountryOverwrites(
         guild,
         verifiedRoleId,
         countryRole.id,
@@ -1743,7 +1791,7 @@ async function syncServer(guild, mode, scope = "all") {
 
       for (const channelDefinition of countryChannels) {
         const channelOverwrites =
-          channelDefinition.name === "regional-news"
+          !previewOnly && channelDefinition.name === "regional-news"
             ? buildRegionalNewsOverwrites(
                 guild,
                 verifiedRoleId,
@@ -1759,7 +1807,7 @@ async function syncServer(guild, mode, scope = "all") {
     }
   }
 
-  const staffOverwrites = [
+  const staffOverwrites = founderPreviewOverwrites ?? [
     {
       id: guild.roles.everyone.id,
       deny: [PermissionFlagsBits.ViewChannel]
@@ -1786,14 +1834,18 @@ async function syncServer(guild, mode, scope = "all") {
     await positionChildren(guild, staff, staffCategory.channels);
   }
 
-  const botCategory = await ensureCategory(guild, levelingConfig.botCategoryName, verifiedOverwrites);
+  const botCategory = await ensureCategory(
+    guild,
+    levelingConfig.botCategoryName,
+    founderPreviewOverwrites ?? verifiedOverwrites
+  );
   if (syncAll) {
     orderedCategories.push(botCategory);
     for (const channelDefinition of levelingConfig.botChannels) {
       const isFeed = channelDefinition.name === "level-feed";
-      const overwrites = isFeed
+      const overwrites = !previewOnly && isFeed
         ? buildReadOnlyOverwrites(guild, visibleVerifiedRoles, founderAndCommunity)
-        : verifiedOverwrites;
+        : founderPreviewOverwrites ?? verifiedOverwrites;
       await ensureChildChannel(guild, botCategory, channelDefinition, overwrites);
     }
     await positionChildren(guild, botCategory, levelingConfig.botChannels);
@@ -1804,6 +1856,8 @@ async function syncServer(guild, mode, scope = "all") {
       await orderedCategories[index].setPosition(index).catch(() => null);
     }
   }
+
+  setGuildMetaValue(guild.id, "serverVisibilityMode", visibility);
 
   let rolePosition = guild.roles.cache.size + 5;
   const orderedRoleIds = [
@@ -2283,9 +2337,10 @@ client.on("interactionCreate", async (interaction) => {
         await interaction.deferReply({ ephemeral: true });
         const mode = interaction.options.getString("mode", true);
         const scope = interaction.options.getString("scope") ?? "all";
-        const result = await syncServer(interaction.guild, mode, scope);
+        const visibility = interaction.options.getString("visibility") ?? "private_preview";
+        const result = await syncServer(interaction.guild, mode, scope, visibility, interaction.user.id);
         await interaction.editReply(
-          `Setup finished for scope: ${scope}. Fixed roles: ${result.fixedRoleCount}, country roles: ${result.countryRoleCount}, skill roles: ${result.skillRoleCount}, public categories: ${result.publicCategoryCount}, country categories: ${result.countryCategoryCount}.`
+          `Setup finished for scope: ${scope} with visibility mode: ${visibility}. Fixed roles: ${result.fixedRoleCount}, country roles: ${result.countryRoleCount}, skill roles: ${result.skillRoleCount}, public categories: ${result.publicCategoryCount}, country categories: ${result.countryCategoryCount}.`
         );
         return;
       }
