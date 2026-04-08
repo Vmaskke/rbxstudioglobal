@@ -2325,16 +2325,16 @@ client.on("interactionCreate", async (interaction) => {
       }
 
       if (interaction.commandName === "setup") {
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
         const member = await interaction.guild.members.fetch(interaction.user.id);
         if (!isFounder(member)) {
-          await interaction.reply({
+          await interaction.editReply({
             content: "Only the Founder can use this server management command.",
-            ephemeral: true
+            flags: MessageFlags.Ephemeral
           });
           return;
         }
 
-        await interaction.deferReply({ ephemeral: true });
         const mode = interaction.options.getString("mode", true);
         const scope = interaction.options.getString("scope") ?? "all";
         const visibility = interaction.options.getString("visibility") ?? "private_preview";
@@ -2346,49 +2346,50 @@ client.on("interactionCreate", async (interaction) => {
       }
 
       if (interaction.commandName === "post-panels") {
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
         const member = await interaction.guild.members.fetch(interaction.user.id);
         if (!isFounder(member)) {
-          await interaction.reply({
+          await interaction.editReply({
             content: "Only the Founder can use this server management command.",
-            ephemeral: true
+            flags: MessageFlags.Ephemeral
           });
           return;
         }
 
-        await interaction.deferReply({ ephemeral: true });
         await postPanels(interaction.channel);
         await interaction.editReply("Panels were rebuilt in this channel.");
         return;
       }
 
       if (interaction.commandName === "audit") {
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
         const member = await interaction.guild.members.fetch(interaction.user.id);
         if (!isFounder(member)) {
-          await interaction.reply({
+          await interaction.editReply({
             content: "Only the Founder can use this server management command.",
-            ephemeral: true
+            flags: MessageFlags.Ephemeral
           });
           return;
         }
 
-        await interaction.reply({
+        await interaction.editReply({
           embeds: [buildAuditSummary(interaction.guild)],
-          ephemeral: true
+          flags: MessageFlags.Ephemeral
         });
         return;
       }
 
       if (interaction.commandName === "refresh-commands") {
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
         const member = await interaction.guild.members.fetch(interaction.user.id);
         if (!isFounder(member)) {
-          await interaction.reply({
+          await interaction.editReply({
             content: "Only the Founder can use this server management command.",
-            ephemeral: true
+            flags: MessageFlags.Ephemeral
           });
           return;
         }
 
-        await interaction.deferReply({ ephemeral: true });
         setGuildMetaValue(guildId, "commandsSignature", null);
         await registerCommands();
         await interaction.editReply("Slash commands refreshed for this guild.");
