@@ -11,6 +11,7 @@ const {
   ContextMenuCommandBuilder,
   EmbedBuilder,
   GatewayIntentBits,
+  MessageFlags,
   ModalBuilder,
   PermissionFlagsBits,
   REST,
@@ -636,16 +637,22 @@ function buildRegionalNewsOverwrites(guild, verifiedRoleId, countryRoleId, leade
 function createOverviewEmbed() {
   return new EmbedBuilder()
     .setTitle("Roblox Studio Global")
-    .setDescription(setupSummary.welcomeText)
     .setColor(0x00b894)
+    .setDescription(
+      `${setupSummary.welcomeText}\n\nA shared creative hub for Roblox builders, scripters, animators, UI designers, modelers, VFX artists, sound designers, and studio teams from many countries.`
+    )
     .addFields(
       {
-        name: "What this server is for",
+        name: "Why people join",
         value: setupSummary.serverPitch
       },
       {
-        name: "How to start",
-        value: "1. Read the rules.\n2. Choose your country.\n3. Choose your creative roles.\n4. Jump into global chat or your local hub."
+        name: "Quick start",
+        value: "1. Read `#rules`\n2. Pick your country role\n3. Pick your creative roles\n4. Jump into global chat or your regional hub"
+      },
+      {
+        name: "What you can do here",
+        value: "Find teammates, ask for help, show off your work, publish updates, grow your community, and meet developers from around the world."
       }
     );
 }
@@ -655,7 +662,7 @@ function createRulesEmbed() {
     .setTitle("Server Rules")
     .setColor(0xe67e22)
     .setDescription(
-      "These rules keep the server welcoming, useful, and safe for creators from every country."
+      "Keep the server useful, welcoming, and safe for creators from every region."
     )
     .addFields(
       setupSummary.rules.map((rule, index) => ({
@@ -669,10 +676,11 @@ function createChannelGuideEmbed() {
   return new EmbedBuilder()
     .setTitle("Channel Guide")
     .setColor(0x5865f2)
+    .setDescription("Use the right channel and your posts will get seen much faster.")
     .addFields(
       {
         name: "#global-chat",
-        value: "Main public chat for everyone."
+        value: "Main social channel for everyone in the server."
       },
       {
         name: "#global-help",
@@ -680,7 +688,7 @@ function createChannelGuideEmbed() {
       },
       {
         name: "#find-team",
-        value: "Find teammates, studios, contractors, or long-term collaborators."
+        value: "Open the team ad panel and publish a structured recruitment post."
       },
       {
         name: "#showcase-global",
@@ -689,6 +697,10 @@ function createChannelGuideEmbed() {
       {
         name: "#hire-and-services",
         value: "Paid jobs, commissions, team hiring, and service offers."
+      },
+      {
+        name: "Regional hubs",
+        value: "Each country hub has its own chat, help, showcase, regional news, and voice space."
       }
     );
 }
@@ -697,23 +709,27 @@ function createNavigationEmbed() {
   return new EmbedBuilder()
     .setTitle("Server Navigation")
     .setColor(0x6c5ce7)
-    .setDescription("Use this as your quick map for the whole server.")
+    .setDescription("A quick map so new members can understand the server in under a minute.")
     .addFields(
       {
         name: "Start Here",
-        value: "Read #rules, open #navigation, verify in #choose-your-roles, then pick your country and creative roles."
+        value: "Read `#rules`, open `#navigation`, verify in `#choose-your-roles`, then unlock your country and creative roles."
       },
       {
-        name: "Media & YouTube",
-        value: "Use #apply-for-media to request the Media role. Approved creators post releases in #media-drops."
+        name: "Global Community",
+        value: "Use `#global-chat`, `#global-help`, `#showcase-global`, and `#resources` for cross-country community activity."
       },
       {
-        name: "Regional leadership",
-        value: "Use #apply-for-region-leader if you want to lead activity and publish regional news."
+        name: "Team up and grow",
+        value: "Use `#find-team` for structured recruitment posts and `#team-board` to browse active openings."
+      },
+      {
+        name: "Media and community growth",
+        value: "Use `#apply-for-media` to request Media access and `#apply-for-region-leader` if you want to lead your local community."
       },
       {
         name: "Regional hubs",
-        value: "Each country hub has chat, help, showcase, regional-news, and voice channels."
+        value: "Every country hub includes local chat, help, showcase, `regional-news`, and voice channels."
       }
     );
 }
@@ -723,7 +739,7 @@ function createLanguageGuideEmbed() {
     .setTitle("Language Guide")
     .setColor(0x8e44ad)
     .setDescription(
-      "Pick your country role to unlock your private country hub with local chat, help, showcase, and voice channels."
+      "Pick your country role to unlock the correct regional hub with local chat, help, showcase, and voice channels."
     )
     .addFields(
       countries.map((country) => ({
@@ -769,14 +785,24 @@ function createCommandsEmbed() {
   return new EmbedBuilder()
     .setTitle("Bot Commands")
     .setColor(0x00cec9)
-    .setDescription("Main user commands available in this server.")
+    .setDescription("Everyday commands available to regular members.")
     .addFields(
-      { name: "/rank", value: "Generate a rank card image for yourself or another member." },
-      { name: "/leaderboard", value: "Show the top XP users." },
-      { name: "/tr", value: "Translate text or a message link into your country language." },
-      { name: "/team-ad", value: "Publish a team ad with uploaded images into #team-board." },
-      { name: "/8ball, /roll, /studio-idea", value: "Small fun commands for the community." }
+      { name: "/rank", value: "Show a clean XP card for yourself or another member." },
+      { name: "/leaderboard", value: "View the current top XP members in the server." },
+      { name: "/tr", value: "Translate text or a message link into your own server language." },
+      { name: "/team-ad", value: "Publish a polished team ad with uploaded images into `#team-board`." },
+      { name: "/8ball, /roll, /studio-idea", value: "Small fun commands for studio jokes, ideas, and random moments." }
     );
+}
+
+function buildSilentPayload(payload) {
+  return {
+    ...payload,
+    flags: MessageFlags.SuppressNotifications,
+    allowedMentions: {
+      parse: []
+    }
+  };
 }
 
 function createYouTuberInfoEmbed() {
@@ -1475,7 +1501,7 @@ async function syncManagedMessages(channel, scope, payloads) {
       continue;
     }
 
-    const created = await channel.send(payload).catch(() => null);
+    const created = await channel.send(buildSilentPayload(payload)).catch(() => null);
     if (created) {
       nextState.push({ messageId: created.id, signature });
     }
