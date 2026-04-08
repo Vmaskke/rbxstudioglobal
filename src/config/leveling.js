@@ -14,17 +14,17 @@ const levelingConfig = {
   messageCooldownMs: 30000,
   voiceXpPerMinute: 10,
   voiceTickMs: 60000,
-  botCategoryName: "🤖 Bot System",
+  botCategoryName: "🤖 Control Hub",
   botChannels: [
     {
       type: "text",
-      name: "bot-commands",
-      topic: "Use slash commands here: rank, audit, server utilities, and bot actions."
+      name: "member-tools",
+      topic: "Use member-facing slash commands here: rank, stats, translation, and utility tools."
     },
     {
       type: "text",
-      name: "level-feed",
-      topic: "Automatic level-up announcements and rank cards."
+      name: "level-pulse",
+      topic: "Automatic level-up announcements, progression updates, and rank cards."
     }
   ]
 };

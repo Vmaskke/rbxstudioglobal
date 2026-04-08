@@ -183,80 +183,80 @@ const skillRoles = [
 ];
 
 const announcementChannels = [
-  { type: "text", name: "welcome-start-here", topic: "Start here: read the rules, choose your roles, and enter the global community." },
-  { type: "text", name: "welcome-feed", topic: "Warm automated welcomes for new members joining the server." },
-  { type: "text", name: "member-tracker", topic: "Join tracking, account age, and entry logs for new members." },
+  { type: "text", name: "launchpad", topic: "Start here, learn the server flow, and unlock the full community." },
+  { type: "text", name: "arrival-feed", topic: "Curated welcome moments and arrival cards for new members." },
+  { type: "text", name: "entry-log", topic: "Private-style tracking feed for joins, account age, and member entry logs." },
   { type: "text", name: "rules", topic: "Server rules and moderation expectations." },
-  { type: "text", name: "language-guide", topic: "Read the welcome and rules in your language, then choose your roles." },
-  { type: "text", name: "navigation", topic: "Quick navigation, where to post, and how the server works." },
-  { type: "text", name: "choose-your-roles", topic: "Verify yourself first, then choose your country and skill roles." },
-  { type: "text", name: "announcements", topic: "Important updates for the community." }
+  { type: "text", name: "language-atlas", topic: "Find your language, read the basics, and enter the right regional space." },
+  { type: "text", name: "server-map", topic: "A clean map of where to talk, post, recruit, and grow." },
+  { type: "text", name: "identity-studio", topic: "Verify first, then build your identity with country and skill roles." },
+  { type: "text", name: "studio-bulletin", topic: "High-signal updates, releases, and important server notices." }
 ];
 
 const publicCategories = [
   {
-    name: "🌍 Global Community",
+    name: "🌐 Core Network",
     channels: [
-      { type: "text", name: "global-chat", topic: "Main global chat for all countries." },
-      { type: "text", name: "global-help", topic: "Ask for help with scripting, building, UI, models, or workflows." },
-      { type: "text", name: "find-team", topic: "Find teammates, collaborators, or studios." },
-      { type: "text", name: "team-board", topic: "Published team recruitment ads and collaboration requests." },
-      { type: "text", name: "showcase-global", topic: "Share your best work with the whole server." },
-      { type: "text", name: "resources", topic: "Plugins, tutorials, tools, docs, and references." },
-      { type: "voice", name: "Global Voice" }
+      { type: "text", name: "creators-lounge", topic: "Main cross-region social space for the whole community." },
+      { type: "text", name: "dev-help-desk", topic: "Ask for scripting, building, UI, model, and workflow help." },
+      { type: "text", name: "crew-finder", topic: "Open the recruitment panel and publish structured team requests." },
+      { type: "text", name: "talent-board", topic: "Published recruitment ads, openings, and collaboration requests." },
+      { type: "text", name: "showcase-stage", topic: "Share polished work, WIPs, trailers, shots, and major milestones." },
+      { type: "text", name: "resource-vault", topic: "Docs, plugins, tools, references, pipelines, and useful links." },
+      { type: "voice", name: "Open Studio" }
     ]
   },
   {
-    name: "🛠️ Creation Labs",
+    name: "🛠 Production Floor",
     channels: [
-      { type: "text", name: "scripts-lab", topic: "Code reviews, snippets, and scripting help." },
-      { type: "text", name: "builder-hub", topic: "Maps, environments, workflow tips, and level feedback." },
-      { type: "text", name: "animation-hub", topic: "Animations, rigs, motion polish, and troubleshooting." },
-      { type: "text", name: "models-materials", topic: "Models, materials, meshes, and assets." },
-      { type: "text", name: "web-ui-dev", topic: "Web tools, UI systems, dashboards, and interfaces." },
-      { type: "text", name: "hire-and-services", topic: "Commissions, paid gigs, and service offers." }
+      { type: "text", name: "scripting-lab", topic: "Code reviews, snippets, systems, debugging, and Roblox Lua help." },
+      { type: "text", name: "worldbuilding-lab", topic: "Maps, architecture, environment design, and building workflows." },
+      { type: "text", name: "motion-lab", topic: "Animation, rigs, timing, polish, and movement direction." },
+      { type: "text", name: "asset-foundry", topic: "Models, materials, meshes, props, and production assets." },
+      { type: "text", name: "interface-lab", topic: "UI, UX, dashboards, web tools, and creator-facing systems." },
+      { type: "text", name: "opportunity-desk", topic: "Commissions, paid work, offers, hiring, and service posts." }
     ]
   },
   {
-    name: "🆘 Support Center",
+    name: "🆘 Support Desk",
     channels: [
-      { type: "text", name: "how-to-get-help", topic: "Explain your issue clearly and get help faster." },
-      { type: "text", name: "bug-and-problem-help", topic: "Share screenshots, errors, logs, and ask for fixes." },
-      { type: "text", name: "portfolio-feedback", topic: "Get feedback on builds, portfolios, and production quality." }
+      { type: "text", name: "help-desk", topic: "Learn how to ask better questions and get useful answers faster." },
+      { type: "text", name: "issue-triage", topic: "Share screenshots, errors, logs, and technical problems for review." },
+      { type: "text", name: "portfolio-clinic", topic: "Get sharp feedback on portfolios, presentations, and quality." }
     ]
   }
 ];
 
 const mediaCategory = {
-  name: "🎥 Creator Program",
+  name: "🎥 Creator Wing",
   channels: [
-    { type: "text", name: "media-info", topic: "Info about the Media role and where to post videos." },
-    { type: "text", name: "apply-for-media", topic: "Apply for the Media role with your channel links and creator info." },
-    { type: "text", name: "media-drops", topic: "Approved media creators post their fresh videos here." }
+    { type: "text", name: "creator-program", topic: "Read how the Media role works and what creators can unlock." },
+    { type: "text", name: "media-apply", topic: "Apply for the Media role with your channel links and creator profile." },
+    { type: "text", name: "creator-releases", topic: "Approved media creators publish new uploads and creator drops here." }
   ]
 };
 
 const reviewCategory = {
-  name: "🗂 Review Desk",
+  name: "🗂 Control Room",
   channels: [
-    { type: "text", name: "media-applications", topic: "Private review queue for Media applications." },
-    { type: "text", name: "region-leader-applications", topic: "Private review queue for Region Leader applications." }
+    { type: "text", name: "media-review-queue", topic: "Private review queue for Media applications." },
+    { type: "text", name: "region-review-queue", topic: "Private review queue for Region Leader applications." }
   ]
 };
 
 const applicationCategory = {
-  name: "📌 Leadership Desk",
+  name: "📌 Leadership Program",
   channels: [
-    { type: "text", name: "region-leader-info", topic: "Read what a region leader does and what is expected." },
-    { type: "text", name: "apply-for-region-leader", topic: "Apply to become the leader for your region." }
+    { type: "text", name: "leader-program", topic: "Read what a region leader does and what is expected." },
+    { type: "text", name: "leader-apply", topic: "Apply to become the leader for your region." }
   ]
 };
 
 const staffCategory = {
-  name: "🛡️ Staff",
+  name: "🛡 Operations",
   channels: [
-    { type: "text", name: "staff-chat", topic: "Private team chat for server staff." },
-    { type: "text", name: "server-audit", topic: "Bot audit output and server setup notes." }
+    { type: "text", name: "ops-chat", topic: "Private operations chat for server management." },
+    { type: "text", name: "audit-log", topic: "Bot audit output, setup notes, and structural checks." }
   ]
 };
 
@@ -274,9 +274,9 @@ const fixedRoles = [
 const setupSummary = {
   serverName: "Roblox Studio Global",
   welcomeText:
-    "Welcome to Roblox Studio Global. Choose your country and creative roles, meet developers from different countries, ask for help, and share your work.",
+    "Welcome to Roblox Studio Global. Build your identity, join the right regional space, meet serious creators, ask for help, and grow your projects with people from different countries.",
   serverPitch:
-    "A clean international home for Roblox creators: scripters, builders, animators, modelers, UI designers, VFX artists, sound designers, web developers, media creators, and studios.",
+    "A polished international platform for Roblox creators: scripters, builders, animators, modelers, UI designers, VFX artists, sound designers, web developers, media creators, and studios.",
   rules: [
     "Respect every country, language, and skill level.",
     "No harassment, hate speech, scams, or NSFW content.",

@@ -119,6 +119,24 @@ const studioIdeaSeeds = {
   hooks: ["for small teams", "for solo devs", "for YouTube moments", "for social clips", "for long-term progression", "for daily co-op sessions"]
 };
 
+const creatorTips = [
+  "Build systems in small test places first, then migrate them into the production place after they survive real edge cases.",
+  "When debugging Roblox Lua, print less and isolate more. A tiny reproducible case beats a noisy console every time.",
+  "Good portfolios are not galleries. Show the problem, your role, the process, and the final result.",
+  "A clean naming system for assets, scripts, folders, and UI saves more production time than most people expect.",
+  "If a feature needs a long explanation, the UX probably still needs one more iteration.",
+  "For team projects, define scope, deadlines, owners, and review points before building the first serious feature.",
+  "Players remember clarity and polish more than raw feature count. Tighten the loop before expanding the map.",
+  "Keep an internal changelog for every serious project. It makes bug hunting, handoffs, and media posting much easier."
+];
+
+const briefSeeds = {
+  genres: ["competitive arena game", "social sandbox", "stylized tycoon", "co-op progression game", "narrative adventure", "combat-driven simulator"],
+  pillars: ["strong replayability", "clean social loops", "short satisfying sessions", "high creator identity", "stream-friendly moments", "long-term mastery"],
+  progression: ["prestige resets", "seasonal challenges", "gear upgrades", "district unlocks", "guild progression", "collection milestones"],
+  tone: ["sleek futuristic", "premium minimalist", "playful cinematic", "mysterious high-tech", "clean studio-grade", "stylized action-forward"]
+};
+
 const commands = [
   new SlashCommandBuilder()
     .setName("setup")
@@ -223,6 +241,12 @@ const commands = [
   new SlashCommandBuilder()
     .setName("studio-idea")
     .setDescription("Get a quick Roblox game idea for fun."),
+  new SlashCommandBuilder()
+    .setName("creator-tip")
+    .setDescription("Get a sharp practical tip for Roblox production work."),
+  new SlashCommandBuilder()
+    .setName("brief")
+    .setDescription("Generate a more serious Roblox project brief."),
   new SlashCommandBuilder()
     .setName("team-ad")
     .setDescription("Publish a formatted recruitment ad with optional uploaded images.")
@@ -432,13 +456,25 @@ async function getBotChannels(guild) {
   };
 }
 
+function findGuildTextChannelByNames(guild, names) {
+  return guild.channels.cache.find(
+    (channel) => channel.type === ChannelType.GuildText && names.includes(channel.name)
+  );
+}
+
 async function getOnboardingChannels(guild) {
   await guild.channels.fetch();
 
   return {
-    welcomeStartChannel: guild.channels.cache.find((channel) => channel.name === "welcome-start-here"),
-    welcomeFeedChannel: guild.channels.cache.find((channel) => channel.name === "welcome-feed"),
-    memberTrackerChannel: guild.channels.cache.find((channel) => channel.name === "member-tracker")
+    welcomeStartChannel: guild.channels.cache.find(
+      (channel) => ["launchpad", "welcome-start-here"].includes(channel.name)
+    ),
+    welcomeFeedChannel: guild.channels.cache.find(
+      (channel) => ["arrival-feed", "welcome-feed"].includes(channel.name)
+    ),
+    memberTrackerChannel: guild.channels.cache.find(
+      (channel) => ["entry-log", "member-tracker"].includes(channel.name)
+    )
   };
 }
 
@@ -666,22 +702,22 @@ function buildFounderPreviewOverwrites(guild, founderMemberId) {
 function createOverviewEmbed() {
   return new EmbedBuilder()
     .setTitle("Roblox Studio Global")
-    .setColor(0x00b894)
+    .setColor(0x1cc8a0)
     .setDescription(
-      `${setupSummary.welcomeText}\n\nA shared creative hub for Roblox builders, scripters, animators, UI designers, modelers, VFX artists, sound designers, and studio teams from many countries.`
+      `${setupSummary.welcomeText}\n\nA studio-grade collaboration space for serious Roblox creators who want better structure, cleaner communication, and stronger projects.`
     )
     .addFields(
       {
-        name: "Why people join",
+        name: "Why this server feels different",
         value: setupSummary.serverPitch
       },
       {
-        name: "Quick start",
-        value: "1. Read `#rules`\n2. Pick your country role\n3. Pick your creative roles\n4. Jump into global chat or your regional hub"
+        name: "Quick start path",
+        value: "1. Read `#rules`\n2. Open `#identity-studio`\n3. Verify and choose your roles\n4. Move into the right community spaces"
       },
       {
         name: "What you can do here",
-        value: "Find teammates, ask for help, show off your work, publish updates, grow your community, and meet developers from around the world."
+        value: "Ship stronger work, build your network, publish team calls, get targeted help, grow regional communities, and turn raw ideas into real projects."
       }
     );
 }
@@ -704,28 +740,28 @@ function createRulesEmbed() {
 function createChannelGuideEmbed() {
   return new EmbedBuilder()
     .setTitle("Channel Guide")
-    .setColor(0x5865f2)
-    .setDescription("Use the right channel and your posts will get seen much faster.")
+    .setColor(0x3f8cff)
+    .setDescription("Each space has a clear job. Use the right room and your message gets better answers, faster.")
     .addFields(
       {
-        name: "#global-chat",
-        value: "Main social channel for everyone in the server."
+        name: "#creators-lounge",
+        value: "Main social channel for conversation, networking, and global community activity."
       },
       {
-        name: "#global-help",
+        name: "#dev-help-desk",
         value: "Ask for scripting, building, UI, animation, modeling, and workflow help."
       },
       {
-        name: "#find-team",
-        value: "Open the team ad panel and publish a structured recruitment post."
+        name: "#crew-finder",
+        value: "Open the recruitment panel and publish a structured, clean team request."
       },
       {
-        name: "#showcase-global",
-        value: "Share your best work, WIPs, trailers, renders, and portfolio posts."
+        name: "#showcase-stage",
+        value: "Share your strongest work, WIPs, trailers, renders, and milestone posts."
       },
       {
-        name: "#hire-and-services",
-        value: "Paid jobs, commissions, team hiring, and service offers."
+        name: "#opportunity-desk",
+        value: "Paid jobs, commissions, team hiring, and professional service offers."
       },
       {
         name: "Regional hubs",
@@ -737,24 +773,24 @@ function createChannelGuideEmbed() {
 function createNavigationEmbed() {
   return new EmbedBuilder()
     .setTitle("Server Navigation")
-    .setColor(0x6c5ce7)
-    .setDescription("A quick map so new members can understand the server in under a minute.")
+    .setColor(0x6d7dff)
+    .setDescription("A quick map for understanding the full platform without digging through every channel.")
     .addFields(
       {
         name: "Start Here",
-        value: "Read `#rules`, open `#navigation`, verify in `#choose-your-roles`, then unlock your country and creative roles."
+        value: "Read `#rules`, open `#server-map`, then verify in `#identity-studio` to unlock the server."
       },
       {
-        name: "Global Community",
-        value: "Use `#global-chat`, `#global-help`, `#showcase-global`, and `#resources` for cross-country community activity."
+        name: "Core Network",
+        value: "Use `#creators-lounge`, `#dev-help-desk`, `#showcase-stage`, and `#resource-vault` for cross-region work."
       },
       {
         name: "Team up and grow",
-        value: "Use `#find-team` for structured recruitment posts and `#team-board` to browse active openings."
+        value: "Use `#crew-finder` for structured recruitment posts and `#talent-board` to browse active openings."
       },
       {
         name: "Media and community growth",
-        value: "Use `#apply-for-media` to request Media access and `#apply-for-region-leader` if you want to lead your local community."
+        value: "Use `#media-apply` to request Media access and `#leader-apply` if you want to lead your local community."
       },
       {
         name: "Regional hubs",
@@ -765,10 +801,10 @@ function createNavigationEmbed() {
 
 function createLanguageGuideEmbed() {
   return new EmbedBuilder()
-    .setTitle("Language Guide")
-    .setColor(0x8e44ad)
+    .setTitle("Language Atlas")
+    .setColor(0x9257d7)
     .setDescription(
-      "Pick your country role to unlock the correct regional hub with local chat, help, showcase, and voice channels."
+      "Pick your country role to unlock the right regional hub with local chat, help, showcase, and voice channels."
     )
     .addFields(
       countries.map((country) => ({
@@ -812,15 +848,17 @@ function createLeaderboardEmbed(entries, guild) {
 
 function createCommandsEmbed() {
   return new EmbedBuilder()
-    .setTitle("Bot Commands")
+    .setTitle("Member Tools")
     .setColor(0x00cec9)
-    .setDescription("Everyday commands available to regular members.")
+    .setDescription("Useful member-facing commands for progress, translation, recruiting, and creative momentum.")
     .addFields(
       { name: "/rank", value: "Show a clean XP card for yourself or another member." },
       { name: "/leaderboard", value: "View the current top XP members in the server." },
       { name: "/tr", value: "Translate text or a message link into your own server language." },
-      { name: "/team-ad", value: "Publish a polished team ad with uploaded images into `#team-board`." },
-      { name: "/8ball, /roll, /studio-idea", value: "Small fun commands for studio jokes, ideas, and random moments." }
+      { name: "/team-ad", value: "Publish a polished team ad with uploaded images into `#talent-board`." },
+      { name: "/creator-tip", value: "Get a concise practical tip for Roblox production and teamwork." },
+      { name: "/brief", value: "Generate a more serious project brief instead of a casual random idea." },
+      { name: "/8ball, /roll, /studio-idea", value: "Lighter commands for studio jokes, sparks, and quick idea generation." }
     );
 }
 
@@ -836,9 +874,9 @@ function buildSilentPayload(payload) {
 
 function createYouTuberInfoEmbed() {
   return new EmbedBuilder()
-    .setTitle("Media Program")
+    .setTitle("Creator Program")
     .setColor(0xff4757)
-    .setDescription("Creators can apply for the Media role and then publish fresh videos in the creator channel.")
+    .setDescription("Creators can apply for the Media role and publish polished releases once approved.")
     .addFields(
       {
         name: "How to apply",
@@ -846,7 +884,7 @@ function createYouTuberInfoEmbed() {
       },
       {
         name: "What approved Media creators can do",
-        value: "Post new uploads in #media-drops and help grow the international community."
+        value: "Post new uploads in `#creator-releases` and help grow the international community."
       }
     );
 }
@@ -869,7 +907,7 @@ function createMediaApplyEmbed() {
       },
       {
         name: "Review result",
-        value: "If approved, you get the Media role and can post in #media-drops. If declined, the bot will DM you with the result."
+        value: "If approved, you get the Media role and can post in `#creator-releases`. If declined, the bot will DM you with the result."
       }
     );
 }
@@ -912,10 +950,10 @@ function createRegionLeaderApplyEmbed() {
 
 function createVerificationEmbed() {
   return new EmbedBuilder()
-    .setTitle("Verification Required")
+    .setTitle("Identity Check")
     .setColor(0xe74c3c)
     .setDescription(
-      "Press the verification button below to unlock the server. Until you verify, the global and country channels stay hidden."
+      "Press the verification button below to unlock the server. Until you verify, the serious community spaces stay hidden."
     )
     .addFields(
       {
@@ -991,7 +1029,7 @@ function createFindTeamButton() {
   return new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId("open-find-team-post")
-      .setLabel("Quick Text Ad")
+      .setLabel("Publish Opening")
       .setStyle(ButtonStyle.Success)
   );
 }
@@ -1040,10 +1078,10 @@ function createRegionLeaderReviewButtons(applicantId) {
 
 function createFindTeamPanelEmbed() {
   return new EmbedBuilder()
-    .setTitle("Find Team Board")
+    .setTitle("Crew Finder")
     .setColor(0x00b894)
     .setDescription(
-      "Use the button below for a quick text-only team post. If you want real uploaded images, use `/team-ad` in any channel."
+      "Use the button below for a quick text-only recruitment post. If you want real uploaded images, use `/team-ad` in any channel."
     )
     .addFields(
       {
@@ -1556,7 +1594,40 @@ async function syncServer(guild, mode, scope = "all", visibility = "private_prev
   const legacyChannelRenames = [
     ["youtuber-info", "media-info"],
     ["apply-for-youtuber", "apply-for-media"],
-    ["youtuber-drops", "media-drops"]
+    ["youtuber-drops", "media-drops"],
+    ["welcome-start-here", "launchpad"],
+    ["welcome-feed", "arrival-feed"],
+    ["member-tracker", "entry-log"],
+    ["language-guide", "language-atlas"],
+    ["navigation", "server-map"],
+    ["choose-your-roles", "identity-studio"],
+    ["announcements", "studio-bulletin"],
+    ["global-chat", "creators-lounge"],
+    ["global-help", "dev-help-desk"],
+    ["find-team", "crew-finder"],
+    ["team-board", "talent-board"],
+    ["showcase-global", "showcase-stage"],
+    ["resources", "resource-vault"],
+    ["scripts-lab", "scripting-lab"],
+    ["builder-hub", "worldbuilding-lab"],
+    ["animation-hub", "motion-lab"],
+    ["models-materials", "asset-foundry"],
+    ["web-ui-dev", "interface-lab"],
+    ["hire-and-services", "opportunity-desk"],
+    ["how-to-get-help", "help-desk"],
+    ["bug-and-problem-help", "issue-triage"],
+    ["portfolio-feedback", "portfolio-clinic"],
+    ["media-info", "creator-program"],
+    ["apply-for-media", "media-apply"],
+    ["media-drops", "creator-releases"],
+    ["media-applications", "media-review-queue"],
+    ["region-leader-applications", "region-review-queue"],
+    ["region-leader-info", "leader-program"],
+    ["apply-for-region-leader", "leader-apply"],
+    ["staff-chat", "ops-chat"],
+    ["server-audit", "audit-log"],
+    ["bot-commands", "member-tools"],
+    ["level-feed", "level-pulse"]
   ];
 
   for (const [oldName, newName] of legacyChannelRenames) {
@@ -1633,7 +1704,7 @@ async function syncServer(guild, mode, scope = "all", visibility = "private_prev
   if (syncAll) {
     onboardingCategory = await ensureCategory(
       guild,
-      "🚀 Start Here",
+      "✦ Launchpad",
       founderPreviewOverwrites ?? baseOverwrites
     );
     orderedCategories.push(onboardingCategory);
@@ -1641,15 +1712,15 @@ async function syncServer(guild, mode, scope = "all", visibility = "private_prev
     for (const channelDefinition of announcementChannels) {
       let overwrites = founderPreviewOverwrites ?? baseOverwrites;
 
-      if (!previewOnly && ["welcome-start-here", "welcome-feed", "member-tracker", "rules", "language-guide", "navigation", "choose-your-roles"].includes(channelDefinition.name)) {
+      if (!previewOnly && ["launchpad", "arrival-feed", "entry-log", "rules", "language-atlas", "server-map", "identity-studio"].includes(channelDefinition.name)) {
         overwrites = buildPublicReadOnlyOverwrites(guild, onboardingWriters);
       }
 
-      if (!previewOnly && ["rules", "language-guide", "navigation", "choose-your-roles"].includes(channelDefinition.name)) {
+      if (!previewOnly && ["rules", "language-atlas", "server-map", "identity-studio"].includes(channelDefinition.name)) {
         overwrites = buildReadOnlyOverwrites(guild, visibleVerifiedRoles, onboardingWriters);
       }
 
-      if (!previewOnly && channelDefinition.name === "announcements") {
+      if (!previewOnly && channelDefinition.name === "studio-bulletin") {
         overwrites = buildReadOnlyOverwrites(guild, visibleVerifiedRoles, onboardingWriters);
       }
 
@@ -1668,19 +1739,19 @@ async function syncServer(guild, mode, scope = "all", visibility = "private_prev
       for (const channelDefinition of categoryDefinition.channels) {
         let overwrites = founderPreviewOverwrites ?? verifiedOverwrites;
 
-        if (!previewOnly && channelDefinition.name === "resources") {
+        if (!previewOnly && channelDefinition.name === "resource-vault") {
           overwrites = buildReadOnlyOverwrites(guild, visibleVerifiedRoles, onboardingWriters);
         }
 
-        if (!previewOnly && channelDefinition.name === "how-to-get-help") {
+        if (!previewOnly && channelDefinition.name === "help-desk") {
           overwrites = buildReadOnlyOverwrites(guild, visibleVerifiedRoles, onboardingWriters);
         }
 
-        if (!previewOnly && channelDefinition.name === "find-team") {
+        if (!previewOnly && channelDefinition.name === "crew-finder") {
           overwrites = buildHiddenReadOnlyOverwrites(guild, visibleVerifiedRoles, founderAndCommunity);
         }
 
-        if (!previewOnly && channelDefinition.name === "team-board") {
+        if (!previewOnly && channelDefinition.name === "talent-board") {
           overwrites = buildHiddenReadOnlyOverwrites(guild, visibleVerifiedRoles, founderAndCommunity);
         }
 
@@ -1699,13 +1770,13 @@ async function syncServer(guild, mode, scope = "all", visibility = "private_prev
   orderedCategories.push(media);
   for (const channelDefinition of mediaCategory.channels) {
     let overwrites = founderPreviewOverwrites ?? verifiedOverwrites;
-    if (!previewOnly && channelDefinition.name === "media-info") {
+    if (!previewOnly && channelDefinition.name === "creator-program") {
       overwrites = buildReadOnlyOverwrites(guild, visibleVerifiedRoles, founderAndCommunity);
     }
-    if (!previewOnly && channelDefinition.name === "apply-for-media") {
+    if (!previewOnly && channelDefinition.name === "media-apply") {
       overwrites = buildHiddenReadOnlyOverwrites(guild, [verifiedRoleId, ...adminRoleIds], founderAndCommunity);
     }
-    if (!previewOnly && channelDefinition.name === "media-drops") {
+    if (!previewOnly && channelDefinition.name === "creator-releases") {
       overwrites = buildReadOnlyOverwrites(
         guild,
         [verifiedRoleId, ...adminRoleIds],
@@ -1757,10 +1828,10 @@ async function syncServer(guild, mode, scope = "all", visibility = "private_prev
     orderedCategories.push(applications);
     for (const channelDefinition of applicationCategory.channels) {
       let overwrites = founderPreviewOverwrites ?? verifiedOverwrites;
-      if (!previewOnly && channelDefinition.name === "region-leader-info") {
+      if (!previewOnly && channelDefinition.name === "leader-program") {
         overwrites = buildReadOnlyOverwrites(guild, visibleVerifiedRoles, founderAndCommunity);
       }
-      if (!previewOnly && channelDefinition.name === "apply-for-region-leader") {
+      if (!previewOnly && channelDefinition.name === "leader-apply") {
         overwrites = buildHiddenReadOnlyOverwrites(guild, [verifiedRoleId, ...adminRoleIds], founderAndCommunity);
       }
       await ensureChildChannel(guild, applications, channelDefinition, overwrites);
@@ -1842,7 +1913,7 @@ async function syncServer(guild, mode, scope = "all", visibility = "private_prev
   if (syncAll) {
     orderedCategories.push(botCategory);
     for (const channelDefinition of levelingConfig.botChannels) {
-      const isFeed = channelDefinition.name === "level-feed";
+      const isFeed = channelDefinition.name === "level-pulse";
       const overwrites = !previewOnly && isFeed
         ? buildReadOnlyOverwrites(guild, visibleVerifiedRoles, founderAndCommunity)
         : founderPreviewOverwrites ?? verifiedOverwrites;
@@ -1886,33 +1957,33 @@ async function syncServer(guild, mode, scope = "all", visibility = "private_prev
     ? guild.channels.cache.find((channel) => channel.parentId === onboardingCategory.id && channel.name === "rules")
     : null;
   const rolesChannel = onboardingCategory
-    ? guild.channels.cache.find((channel) => channel.parentId === onboardingCategory.id && channel.name === "choose-your-roles")
+    ? guild.channels.cache.find((channel) => channel.parentId === onboardingCategory.id && channel.name === "identity-studio")
     : null;
   const welcomeChannel = onboardingCategory
-    ? guild.channels.cache.find((channel) => channel.parentId === onboardingCategory.id && channel.name === "welcome-start-here")
+    ? guild.channels.cache.find((channel) => channel.parentId === onboardingCategory.id && channel.name === "launchpad")
     : null;
   const languageGuideChannel = onboardingCategory
-    ? guild.channels.cache.find((channel) => channel.parentId === onboardingCategory.id && channel.name === "language-guide")
+    ? guild.channels.cache.find((channel) => channel.parentId === onboardingCategory.id && channel.name === "language-atlas")
     : null;
   const navigationChannel = onboardingCategory
-    ? guild.channels.cache.find((channel) => channel.parentId === onboardingCategory.id && channel.name === "navigation")
+    ? guild.channels.cache.find((channel) => channel.parentId === onboardingCategory.id && channel.name === "server-map")
     : null;
   const mediaInfoChannel = guild.channels.cache.find(
-    (channel) => channel.parentId === media.id && channel.name === "media-info"
+    (channel) => channel.parentId === media.id && channel.name === "creator-program"
   );
   const mediaApplyChannel = guild.channels.cache.find(
-    (channel) => channel.parentId === media.id && channel.name === "apply-for-media"
+    (channel) => channel.parentId === media.id && channel.name === "media-apply"
   );
   const leaderInfoChannel = applications
-    ? guild.channels.cache.find((channel) => channel.parentId === applications.id && channel.name === "region-leader-info")
+    ? guild.channels.cache.find((channel) => channel.parentId === applications.id && channel.name === "leader-program")
     : null;
   const leaderApplyChannel = applications
-    ? guild.channels.cache.find((channel) => channel.parentId === applications.id && channel.name === "apply-for-region-leader")
+    ? guild.channels.cache.find((channel) => channel.parentId === applications.id && channel.name === "leader-apply")
     : null;
   const commandsChannel = guild.channels.cache.find(
-    (channel) => channel.parentId === botCategory.id && channel.name === "bot-commands"
+    (channel) => channel.parentId === botCategory.id && channel.name === "member-tools"
   );
-  const findTeamChannel = guild.channels.cache.find((channel) => channel.name === "find-team");
+  const findTeamChannel = guild.channels.cache.find((channel) => channel.name === "crew-finder");
 
   if (syncAll && welcomeChannel) {
     await postWelcomeMessages(welcomeChannel);
@@ -2498,6 +2569,47 @@ client.on("interactionCreate", async (interaction) => {
         return;
       }
 
+      if (interaction.commandName === "creator-tip") {
+        const tip = creatorTips[Math.floor(Math.random() * creatorTips.length)];
+        await interaction.reply({
+          embeds: [
+            new EmbedBuilder()
+              .setTitle("Creator Tip")
+              .setColor(0x00b894)
+              .setDescription(tip)
+          ],
+          ephemeral: true
+        });
+        return;
+      }
+
+      if (interaction.commandName === "brief") {
+        const genre = briefSeeds.genres[Math.floor(Math.random() * briefSeeds.genres.length)];
+        const pillar = briefSeeds.pillars[Math.floor(Math.random() * briefSeeds.pillars.length)];
+        const progression = briefSeeds.progression[Math.floor(Math.random() * briefSeeds.progression.length)];
+        const tone = briefSeeds.tone[Math.floor(Math.random() * briefSeeds.tone.length)];
+
+        await interaction.reply({
+          embeds: [
+            new EmbedBuilder()
+              .setTitle("Project Brief")
+              .setColor(0x6d7dff)
+              .addFields(
+                { name: "Genre", value: genre },
+                { name: "Core pillar", value: pillar },
+                { name: "Progression loop", value: progression },
+                { name: "Visual tone", value: tone },
+                {
+                  name: "Direction",
+                  value: "Turn this into a playable loop first, then define retention, social hooks, and a clean production scope."
+                }
+              )
+          ],
+          ephemeral: true
+        });
+        return;
+      }
+
       if (interaction.commandName === "team-ad") {
         await interaction.deferReply({ ephemeral: true });
         const member = await interaction.guild.members.fetch(interaction.user.id);
@@ -2516,12 +2628,10 @@ client.on("interactionCreate", async (interaction) => {
           return;
         }
 
-        const targetChannel = interaction.guild.channels.cache.find(
-          (channel) => channel.name === "team-board" && channel.type === ChannelType.GuildText
-        );
+        const targetChannel = findGuildTextChannelByNames(interaction.guild, ["talent-board", "team-board"]);
 
         if (!targetChannel) {
-          await interaction.editReply("The team-board channel was not found. Ask staff to run /setup again.");
+          await interaction.editReply("The talent-board channel was not found. Ask staff to run /setup again.");
           return;
         }
 
@@ -2558,7 +2668,7 @@ client.on("interactionCreate", async (interaction) => {
           [interaction.user.id]: now
         });
 
-        await interaction.editReply("Your team ad with uploaded images has been published in #team-board.");
+        await interaction.editReply("Your team ad with uploaded images has been published in #talent-board.");
         return;
       }
 
@@ -2959,9 +3069,7 @@ client.on("interactionCreate", async (interaction) => {
       if (interaction.customId === "submit-media-application") {
         const socialLink = interaction.fields.getTextInputValue("field_one");
         const aboutCreator = interaction.fields.getTextInputValue("field_two");
-        const applicationChannel = interaction.guild.channels.cache.find(
-          (channel) => channel.name === "media-applications" && channel.type === ChannelType.GuildText
-        );
+        const applicationChannel = findGuildTextChannelByNames(interaction.guild, ["media-review-queue", "media-applications"]);
 
         if (!applicationChannel) {
           await interaction.reply({
@@ -3020,9 +3128,7 @@ client.on("interactionCreate", async (interaction) => {
           return;
         }
 
-        const applicationChannel = interaction.guild.channels.cache.find(
-          (channel) => channel.name === "region-leader-applications" && channel.type === ChannelType.GuildText
-        );
+        const applicationChannel = findGuildTextChannelByNames(interaction.guild, ["region-review-queue", "region-leader-applications"]);
 
         if (!applicationChannel) {
           await interaction.reply({
@@ -3095,13 +3201,11 @@ client.on("interactionCreate", async (interaction) => {
           return;
         }
 
-        const targetChannel = interaction.guild.channels.cache.find(
-          (channel) => channel.name === "team-board" && channel.type === ChannelType.GuildText
-        );
+        const targetChannel = findGuildTextChannelByNames(interaction.guild, ["talent-board", "team-board"]);
 
         if (!targetChannel) {
           await interaction.reply({
-            content: "The team-board channel was not found. Ask staff to run /setup again.",
+            content: "The talent-board channel was not found. Ask staff to run /setup again.",
             ephemeral: true
           });
           return;
@@ -3129,7 +3233,7 @@ client.on("interactionCreate", async (interaction) => {
         });
 
         await interaction.reply({
-          content: "Your team ad has been published in #team-board. For real uploaded images, use /team-ad.",
+          content: "Your team ad has been published in #talent-board. For real uploaded images, use /team-ad.",
           ephemeral: true
         });
         return;
